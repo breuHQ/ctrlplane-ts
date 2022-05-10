@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./build"
+  },
+  "extends": "@ctrlplane.dev/tsconfig/base.json",
+  "exclude": ["build"]
+}

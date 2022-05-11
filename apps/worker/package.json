@@ -25,5 +25,9 @@
   },
   "volta": {
     "node": "16.13.0"
+  },
+  "dependencies": {
+    "@ctrlplane.dev/env-ctrl-workflow": "*",
+    "temporalio": "^0.22.0"
   }
 }

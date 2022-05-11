@@ -1,27 +1,17 @@
-/**
- * Some predefined delay values (in milliseconds).
- */
-export enum Delays {
-  Short = 500,
-  Medium = 2000,
-  Long = 5000,
-}
+import { Worker } from '@temporalio/worker';
+import { activities } from '@ctrlplane.dev/env-ctrl-workflow';
 
-/**
- * Returns a Promise<string> that resolves after a given time.
- *
- * @param {string} name - A name.
- * @param {number=} [delay=Delays.Medium] - A number of milliseconds to delay resolution of the Promise.
- * @returns {Promise<string>}
- */
-function delayedHello(name: string, delay: number = Delays.Medium): Promise<string | undefined> {
-  return new Promise((resolve: (value?: string) => void) => setTimeout(() => resolve(`Hello, ${name}`), delay));
-}
+const main = async () => {
+  const worker = await Worker.create({
+    activities,
+    workflowBundle: { path: require.resolve('./../../../../packages/workflows/env-ctrl/build/src/workflow.js') },
+    taskQueue: 'env-ctrl-wf',
+  });
 
-// Below are examples of using ESLint errors suppression
-// Here it is suppressing a missing return type definition for the greeter function.
+  await worker.run();
+};
 
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-export async function greeter(name: string) {
-  return await delayedHello(name, Delays.Long);
-}
+main().catch(err => {
+  console.error(`Worker stopped: ${err}`);
+  process.exit(1);
+});

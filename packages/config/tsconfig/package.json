@@ -1,8 +1,7 @@
 {
   "name": "@ctrlplane.dev/tsconfig",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
-  "main": "index.js",
   "files": [
     "base.json",
     "nextjs.json",

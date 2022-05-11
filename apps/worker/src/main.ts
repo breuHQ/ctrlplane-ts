@@ -1,10 +1,13 @@
 import { Worker } from '@temporalio/worker';
 import { activities } from '@ctrlplane.dev/env-ctrl-workflow';
 
+/**
+ * @type {Worker}
+ */
 const main = async () => {
   const worker = await Worker.create({
     activities,
-    workflowBundle: { path: require.resolve('./../../../../packages/workflows/env-ctrl/build/src/workflow.js') },
+    workflowBundle: { path: require.resolve('./../env-ctrl-workflow/workflow.js') },
     taskQueue: 'env-ctrl-wf',
   });
 

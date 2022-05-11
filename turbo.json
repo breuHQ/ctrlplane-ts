@@ -9,6 +9,9 @@
     },
     "dev": {
       "cache": false
+    },
+    "dev.worker": {
+      "cache": false
     }
   }
 }

@@ -4,7 +4,9 @@
   "private": true,
   "description": "Environment controller workflow to control maximum parallel activities.",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "dev.worker": "tsc -p tsconfig.dev.json --watch"
   },
   "main": "./build/index.js",
   "devDependencies": {

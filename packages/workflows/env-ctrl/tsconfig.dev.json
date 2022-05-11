@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "rootDir": "./src",
-    "outDir": "./build/worker",
+    "outDir": "./../../../apps/worker/build/env-ctrl-workflow",
     "target": "esnext"
   },
   "extends": "@ctrlplane.dev/tsconfig/base.json",

@@ -1,5 +1,5 @@
 module.exports = {
   root: true,
   // This tells ESLint to load the config from the package `eslint-config-custom`
-  extends: ["@ctrlplane.dev/eslint-config"],
+  extends: ['@ctrlplane/eslint-config'],
 };

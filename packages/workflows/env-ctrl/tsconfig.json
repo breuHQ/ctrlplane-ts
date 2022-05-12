@@ -1,9 +1,8 @@
 {
   "compilerOptions": {
-    "rootDir": ".",
     "outDir": "./build",
     "target": "esnext"
   },
-  "extends": "@ctrlplane.dev/tsconfig/base.json",
+  "extends": "@ctrlplane/tsconfig/base.json",
   "exclude": ["build"]
 }

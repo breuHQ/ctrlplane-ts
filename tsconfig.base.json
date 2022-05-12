@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "rootDir": ".",
+    "composite": false,
+    "declaration": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "inlineSources": false,
+    "lib": ["es2020", "dom"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noImplicitReturns": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strictNullChecks": true,
+    "strict": true,
+    "paths": {
+      "@ctrlplane/workflows/env-ctrl": ["packages/workflows/env-ctrl/src/index.ts"],
+      "@ctrlplane/workflows/env-ctrl/workflows": ["packages/workflows/env-ctrl/src/workflows.ts"]
+    }
+  },
+  "exclude": ["node_modules"]
+}

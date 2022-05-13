@@ -78,6 +78,7 @@ services:
   #   # - temporal-network
   #   ports:
   #     - 8088:8088
+
   # the experimental new UI version, on 8080
   temporal-ui:
     container_name: temporal-ui

@@ -7,6 +7,7 @@ const activity = proxyActivities<typeof activities>({
 });
 
 export async function EnvrionmentControllerWorkflow() {
-  logger.info('Starting environment controller workflow');
+  // console.info('Environment Controller Workflow started ....');
   await activity.createEnvironment();
+  return;
 }

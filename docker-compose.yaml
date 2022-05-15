@@ -41,12 +41,12 @@ services:
       - POSTGRES_USER=temporal
       - POSTGRES_PWD=temporal
       - POSTGRES_SEEDS=postgresql
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development_es.yaml
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/dev.yaml
     #  - ENABLE_ES=true
     #  - ES_SEEDS=elasticsearch
     #  - ES_VERSION=v7
     # https://github.com/temporalio/temporal/issues/2539
-    image: temporalio/auto-setup:1.13.4
+    image: temporalio/auto-setup:1.16.2
     # networks:
     # - temporal-network
     ports:
@@ -60,7 +60,7 @@ services:
     environment:
       - TEMPORAL_CLI_ADDRESS=temporal:7233
     # https://github.com/temporalio/temporal/issues/2539
-    image: temporalio/admin-tools:1.13.4
+    image: temporalio/admin-tools:1.16.2
     # networks:
     # - temporal-network
     stdin_open: true
@@ -87,7 +87,7 @@ services:
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
       - TEMPORAL_CORS_ORIGINS=http://localhost:3000
-    image: temporalio/ui:0.3.0
+    image: temporalio/ui:0.13.2
     #     networks:
     #       - temporal-network
     ports:

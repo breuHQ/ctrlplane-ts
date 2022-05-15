@@ -17,6 +17,9 @@
     "strictNullChecks": true,
     "strict": true,
     "paths": {
+      "@ctrlplane/workflows/common/activities": ["packages/workflows/common/src/activities.ts"],
+      "@ctrlplane/workflows/common/models": ["packages/workflows/common/src/models.ts"],
+      "@ctrlplane/workflows/common/workflows": ["packages/workflows/common/src/workflows.ts"],
       "@ctrlplane/workflows/env-ctrl": ["packages/workflows/env-ctrl/src/index.ts"],
       "@ctrlplane/workflows/env-ctrl/workflows": ["packages/workflows/env-ctrl/src/workflows.ts"]
     }

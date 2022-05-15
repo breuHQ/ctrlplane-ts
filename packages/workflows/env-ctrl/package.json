@@ -1,15 +1,13 @@
 {
-  "name": "@ctrlplane/env-ctrl-workflow",
+  "name": "@ctrlplane/workflows--env-ctrl",
   "version": "0.0.1",
   "private": true,
   "description": "Environment controller workflow to control maximum parallel activities.",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json --watch",
-    "dev.worker": "tsc -p tsconfig.dev.json --watch"
+    "dev": "tsc -p tsconfig.json --watch"
   },
   "devDependencies": {
-    "@ctrlplane/tsconfig": "*",
     "typescript": "~4.6"
   },
   "dependencies": {

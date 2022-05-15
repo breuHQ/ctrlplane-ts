@@ -1,0 +1,18 @@
+{
+  "name": "@ctrlplane/workflows--common",
+  "version": "0.0.1",
+  "description": "Common scripts, utilities and interfaces to all workflows. Useful for intterceptors & sinks",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "winston": "^3.7.0"
+  },
+  "devDependencies": {
+    "@ctrlplane/tsconfig": "*",
+    "typescript": "~4.6"
+  },
+  "author": "Yousuf Jawwad <ysf@breu.io>",
+  "license": "ISC"
+}

@@ -1,5 +1,5 @@
 import { Context } from '@temporalio/activity';
-import { ActivityInboundCallsInterceptor, ActivityExecuteInput, Next } from '@temporalio/worker';
+import { ActivityExecuteInput, ActivityInboundCallsInterceptor, Next } from '@temporalio/worker';
 import { Logger } from 'winston';
 
 /** An Activity Context with an attached logger */

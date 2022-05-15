@@ -8,7 +8,7 @@ build({
   // format: 'cjs',
   format: 'esm',
   platform: 'node',
-  external: ['@temporalio/*', './workflows-bundle.js'],
+  external: ['@temporalio/*', 'rxjs/*', 'util/*', 'triple-beam/*', 'winston/*', '../../node_modules/*'],
   outdir: './build',
   watch: true,
 });

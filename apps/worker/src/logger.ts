@@ -1,5 +1,5 @@
 import { LEVEL, MESSAGE, SPLAT } from 'triple-beam';
-import util from 'util';
+// import util from 'util';
 import winston from 'winston';
 
 /** Turns a given timestamp or current Date to an ISO date string */
@@ -14,11 +14,11 @@ const formatLog = winston.format.printf(({ level, message, label, timestamp, ...
   // The type signature in winston is wrong
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { [LEVEL]: _lvl, [SPLAT]: _splt, [MESSAGE]: _msg, ...restNoSymbols } = rest as Record<string | symbol, unknown>;
-  // return `${getDateStr(timestamp)} [${label}] ${level}: ${message}`;
+  return `${level.toUpperCase()}: ${getDateStr(timestamp)} [${label}] ${message}`;
 
-  return Object.keys(restNoSymbols).length === 0
-    ? `${getDateStr(timestamp)} [${label}] ${level}: ${message}`
-    : `${getDateStr(timestamp)} [${label}] ${level}: ${message} ${util.inspect(restNoSymbols, false, 4, true)}`;
+  // return Object.keys(restNoSymbols).length === 0
+  //   ? `${getDateStr(timestamp)} [${level}] [${label}]: ${message}`
+  //   : `${getDateStr(timestamp)} [${level}] [${label}]: ${message} ${util.inspect(restNoSymbols, false, 4, true)}`;
 });
 
 /** Create a winston logger from given options */

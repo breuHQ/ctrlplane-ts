@@ -3,6 +3,6 @@
     "outDir": "./build",
     "target": "esnext"
   },
-  "extends": "../../../tsconfig.base.json",
+  "extends": "../../tsconfig.base.json",
   "exclude": ["build"]
 }

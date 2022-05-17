@@ -8,3 +8,15 @@ export interface LoggerSinks extends Sinks {
     warn(message: string, meta?: unknown): void;
   };
 }
+
+export interface TestPlan {
+  id: string;
+  continue: boolean;
+  sleepSeconds: number;
+}
+
+export interface TestEnvironment {
+  id: string;
+  maxParallism: number;
+  tests: Array<TestPlan>;
+}

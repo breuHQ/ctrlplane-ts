@@ -46,9 +46,9 @@ export class ActivityInboundLogInterceptor implements ActivityInboundCallsInterc
           `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${this.info.activityId}]: Error ${durationMs}ms ${error}`,
         );
       } else {
-        this.logger.debug(
-          `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${this.info.activityId}]: Completed ${durationMs}ms`,
-        );
+        // this.logger.debug(
+        //   `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${this.info.activityId}]: Completed ${durationMs}ms`,
+        // );
       }
     }
   }

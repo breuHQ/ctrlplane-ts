@@ -26,7 +26,7 @@ const main = async () => {
   });
 
   const formatMessage = (info: WorkflowInfo, message: string) =>
-    `[${info.workflowType}] [${info.workflowId}] [${info.runId}]: ${message}`;
+    `[${info.workflowType}] [${info.workflowId}]: ${message}`;
 
   const sinks: InjectedSinks<LoggerSinks> = {
     logger: {

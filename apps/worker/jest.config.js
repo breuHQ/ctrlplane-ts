@@ -11,8 +11,5 @@ export default {
   },
   testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.ts$',
   coverageDirectory: 'coverage',
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
 };

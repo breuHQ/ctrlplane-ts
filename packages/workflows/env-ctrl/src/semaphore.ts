@@ -10,39 +10,87 @@ export class Semaphore {
   private _completeFn!: PlaceholderFn;
   private _completePr!: Promise<void>;
 
-  constructor(public readonly workersCount: number) {
-    if (workersCount <= 0) throw new Error('workersCount must be positive');
-    this._available = workersCount;
+  constructor(public max: number) {
+    if (max <= 0) throw new Error('size must be positive');
+    this._available = max;
     this._upcoming = [];
     this._heads = [];
     this._refreshComplete();
   }
 
-  async fire<A>(f: () => Promise<A>): Promise<A> {
-    await this._acquire();
-    return this._execWithRelease(f);
+  /**
+   * Resizes the semaphore to the specified size.
+   *
+   * @param {number} max The new size of the semaphore.
+   * @memberof Semaphore
+   */
+  public resize(max: number) {
+    this.max = max;
   }
 
-  async fireAndForget<A>(f: () => Promise<A>): Promise<void> {
+  /**
+   * Executes a function and returns a promise that resolves when the function completes.
+   *
+   * @template A The return type of the function.
+   * @param {() => Promise<A>} fn The function to execute.
+   * @returns {Promise<A>} A promise that resolves when the function completes.
+   * @memberof Semaphore
+   */
+  public async fire<A>(fn: () => Promise<A>): Promise<A> {
+    await this._acquire();
+    return this._execWithRelease(fn);
+  }
+
+  /**
+   * Executes the function but ignores the result.
+   *
+   * @template A The return type of the function.
+   * @param {() => Promise<A>} fn The function to execute.
+   * @returns {Promise<void>} A promise that resolves when the function completes.
+   * @memberof Semaphore
+   */
+  public async fireAndForget<A>(fn: () => Promise<A>): Promise<void> {
     await this._acquire();
     // Ignoring returned promise on purpose!
-    this._execWithRelease(f);
+    this._execWithRelease(fn);
   }
 
-  async awaitTerminate(): Promise<void> {
-    if (this._available < this.workersCount) {
+  /**
+   * Returns a promise that resolves when the semaphore is empty.
+   *
+   * @returns {Promise<void>} A promise that resolves when the semaphore is empty.
+   * @memberof Semaphore
+   */
+  public async awaitTerminate(): Promise<void> {
+    if (this._available < this.max) {
       return this._completePr;
     }
   }
 
-  private async _execWithRelease<A>(f: () => Promise<A>): Promise<A> {
+  /**
+   * Executes the function and releases the semaphore.
+   *
+   * @private
+   * @template A The return type of the function.
+   * @param {() => Promise<A>} fn The function to execute.
+   * @returns {Promise<A>} A promise that resolves when the function completes.
+   * @memberof Semaphore
+   */
+  private async _execWithRelease<A>(fn: () => Promise<A>): Promise<A> {
     try {
-      return await f();
+      return await fn();
     } finally {
       this._release();
     }
   }
 
+  /**
+   * Returns the current queue of functions.
+   *
+   * @private
+   * @returns {Function[]} The current queue of functions.
+   * @memberof Semaphore
+   */
   // eslint-disable-next-line @typescript-eslint/ban-types
   private _queue(): Function[] {
     if (!this._heads.length) {
@@ -76,7 +124,7 @@ export class Semaphore {
     } else {
       this._available += 1;
 
-      if (this._available >= this.workersCount) {
+      if (this._available >= this.max) {
         const fn = this._completeFn;
         this._refreshComplete();
         fn();

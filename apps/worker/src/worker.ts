@@ -1,5 +1,6 @@
 import { ActivityInboundLogInterceptor } from '@ctrlplane/common/activities';
 import { LoggerSinks } from '@ctrlplane/common/models';
+import { QUEUE_ENV_CTRL } from '@ctrlplane/common/names';
 import { activities } from '@ctrlplane/workflows/env-ctrl';
 import { DefaultLogger, InjectedSinks, Runtime, Worker } from '@temporalio/worker';
 import { WorkflowInfo } from '@temporalio/workflow';
@@ -16,8 +17,8 @@ const main = async () => {
   Runtime.install({
     logger: new DefaultLogger('INFO', entry => {
       workerLogger.log({
-        // level: entry.level.toLocaleLowerCase(),
-        level: entry.level,
+        level: entry.level.toLocaleLowerCase(),
+        // level: entry.level,
         message: entry.message,
         timestamp: Number(entry.timestampNanos / 1_000_000_000n),
         ...entry.meta,
@@ -31,34 +32,33 @@ const main = async () => {
   const sinks: InjectedSinks<LoggerSinks> = {
     logger: {
       debug: {
-        fn(workflowInfo, message, meta) {
-          workflowLogger.child(workflowInfo).debug(formatMessage(workflowInfo, message), meta);
+        fn(level, message, meta) {
+          workflowLogger.child(level).debug(formatMessage(level, message), meta);
         },
       },
       info: {
-        fn(workflowInfo, message, meta) {
-          workflowLogger.child(workflowInfo).info(formatMessage(workflowInfo, message), meta);
+        fn(level, message, meta) {
+          workflowLogger.child(level).info(formatMessage(level, message), meta);
         },
       },
       error: {
-        fn(workflowInfo, message, meta) {
-          workflowLogger.child(workflowInfo).error(formatMessage(workflowInfo, message), meta);
+        fn(level, message, meta) {
+          workflowLogger.child(level).error(formatMessage(level, message), meta);
         },
       },
       warn: {
-        fn(workflowInfo, message, meta) {
-          workflowLogger.child(workflowInfo).warn(formatMessage(workflowInfo, message), meta);
+        fn(level, message, meta) {
+          workflowLogger.child(level).warn(formatMessage(level, message), meta);
         },
       },
     },
   };
 
   const workflowsPath = new URL(`./workflows${path.extname(import.meta.url)}`, import.meta.url).pathname;
-  workerLogger.info(`Workflows path: ${workflowsPath}`);
   const worker = await Worker.create({
     activities,
     workflowsPath,
-    taskQueue: 'env-ctrl-wf',
+    taskQueue: QUEUE_ENV_CTRL,
     sinks,
     interceptors: {
       activityInbound: [ctx => new ActivityInboundLogInterceptor(ctx, activityLogger)],

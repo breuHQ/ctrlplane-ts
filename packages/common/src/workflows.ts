@@ -1,5 +1,12 @@
-import { Next, proxySinks, WorkflowExecuteInput, WorkflowInboundCallsInterceptor } from '@temporalio/workflow';
-import { LoggerSinks } from './models';
+import {
+  Next,
+  proxySinks,
+  WorkflowExecuteInput,
+  WorkflowInboundCallsInterceptor,
+  defineSignal,
+} from '@temporalio/workflow';
+import { LoggerSinks, TestEnvironment } from './models';
+import { SIGNAL_UPDATE_ENVIRONMENT_CTRL_WORKFLOW } from './names';
 
 export const { logger } = proxySinks<LoggerSinks>();
 
@@ -23,3 +30,7 @@ export class WorkflowInboundLogInterceptor implements WorkflowInboundCallsInterc
     }
   }
 }
+
+export const UpdateEnvironmentControllerlWorkflowSignal = defineSignal<[TestEnvironment]>(
+  SIGNAL_UPDATE_ENVIRONMENT_CTRL_WORKFLOW,
+);

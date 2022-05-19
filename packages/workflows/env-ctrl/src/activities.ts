@@ -13,17 +13,17 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 //   return;
 // }
 
-export const createEnvironment: (p: TestPlan) => Promise<void> = async (plan: TestPlan) => {
+export const createEnvironment: (plan: TestPlan, max: number) => Promise<void> = async (plan, max = 1) => {
   const context = getContext();
   context.logger.info(
-    `[${context.info.workflowType}] [${context.info.workflowExecution.workflowId}] [act-${plan.id}]: Start [${plan.sleepSeconds}s]`,
+    `[${context.info.workflowType}] [${context.info.workflowExecution.workflowId}] [act-${plan.id}] [${max}]: Start [${plan.sleepSeconds}s]`,
   );
   for (let secs = 0; secs < plan.sleepSeconds; secs++) {
     await sleep(1000);
     context.heartbeat();
   }
   context.logger.info(
-    `[${context.info.workflowType}] [${context.info.workflowExecution.workflowId}] [act-${plan.id}]: End [${plan.sleepSeconds}s]`,
+    `[${context.info.workflowType}] [${context.info.workflowExecution.workflowId}] [act-${plan.id}] [${max}]: End [${plan.sleepSeconds}s]`,
   );
   return;
 };

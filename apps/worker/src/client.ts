@@ -15,11 +15,6 @@ const run = async () => {
   const testEnvironments = createTestEnvironments(50);
 
   for (const env of testEnvironments) {
-    // await client.start(EnvrionmentControllerWorkflow, {
-    //   workflowId: `env-${env.id}`,
-    //   args: [env],
-    //   ...options,
-    // });
     await client.signalWithStart(EnvrionmentControllerWorkflow, {
       workflowId: `env-${env.id}`,
       args: [env],
@@ -28,11 +23,6 @@ const run = async () => {
       ...options,
     });
   }
-
-  // for (const env of testEnvironments) {
-  //   const handle = client.getHandle(`env-${env.id}`);
-  //   await handle.signal(UpdateEnvironmentControllerlWorkflowSignal, env);
-  // }
 };
 
 run().catch(err => {

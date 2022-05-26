@@ -41,6 +41,8 @@ export const EnvrionmentControllerWorkflow = async (env: TestEnvironment) => {
   });
 
   await semaphore.awaitTerminate();
+
+  logger.info(`Finished`);
   return;
 };
 

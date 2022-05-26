@@ -10,7 +10,6 @@
     "winston": "^3.7.0"
   },
   "devDependencies": {
-    "@ctrlplane/tsconfig": "*",
     "typescript": "~4.6"
   },
   "author": "Yousuf Jawwad <ysf@breu.io>",

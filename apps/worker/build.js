@@ -3,11 +3,13 @@ import { build } from 'esbuild';
 import { readFile } from 'fs/promises';
 
 const pkg = JSON.parse(await readFile('./package.json', 'utf8'));
-const external = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.peerDependencies || {})];
-console.log(external);
+const external = [
+  ...Object.keys(pkg.dependencies || {}),
+  ...Object.keys(pkg.devDependencies || {}),
+  ...Object.keys(pkg.peerDependencies || {}),
+];
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-build({
+await build({
   entryPoints: ['./src/client.ts', './src/worker.ts', './src/workflows.ts'],
   bundle: true,
   sourcemap: true,
@@ -16,5 +18,10 @@ build({
   platform: 'node',
   external: ['@temporalio/*', ...external],
   outdir: './build',
-  watch: true,
+  treeShaking: true,
+  minifyIdentifiers: true,
+  minifySyntax: true,
+  // watch: true,
 });
+
+console.info('Build complete');

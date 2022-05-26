@@ -2,12 +2,14 @@ import { ActivityInboundLogInterceptor } from '@ctrlplane/common/activities';
 import { LoggerSinks } from '@ctrlplane/common/models';
 import { QUEUE_ENV_CTRL } from '@ctrlplane/common/names';
 import { activities } from '@ctrlplane/workflows/env-ctrl';
-import { DefaultLogger, InjectedSinks, Runtime, Worker } from '@temporalio/worker';
+import { DefaultLogger, InjectedSinks, Runtime, Worker, LogLevel } from '@temporalio/worker';
 import { WorkflowInfo } from '@temporalio/workflow';
 import path from 'path';
 import { createLogger } from './logger';
 
-const logger = createLogger();
+const logLevel: LogLevel = 'INFO';
+
+const logger = createLogger(logLevel);
 
 const main = async () => {
   const workerLogger = logger.child({ label: 'Worker' });
@@ -15,7 +17,7 @@ const main = async () => {
   const activityLogger = logger.child({ label: 'Activity' });
 
   Runtime.install({
-    logger: new DefaultLogger('INFO', entry => {
+    logger: new DefaultLogger(logLevel, entry => {
       workerLogger.log({
         level: entry.level.toLocaleLowerCase(),
         // level: entry.level,

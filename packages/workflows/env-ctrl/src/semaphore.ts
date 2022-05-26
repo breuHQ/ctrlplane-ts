@@ -1,15 +1,49 @@
-type PlaceholderFn = () => void;
+/* eslint-disable @typescript-eslint/ban-types */
 
+type VoidFn = () => void;
+
+/**
+ * Given a number, creates a semaphore that can be used to limit the number of concurrent executions.
+ *
+ * @export
+ * @class Semaphore
+ */
 export class Semaphore {
+  /**
+   * Available semaphore slots.
+   *
+   * @private
+   * @type {number}
+   * @memberof Semaphore
+   */
   private _available: number;
-  // eslint-disable-next-line @typescript-eslint/ban-types
+
+  /**
+   * Executions that are in the queue.
+   *
+   * @private
+   * @type {Function[]}
+   * @memberof Semaphore
+   */
   private _upcoming: Function[];
-  // eslint-disable-next-line @typescript-eslint/ban-types
+
+  /**
+   * Exections that are being executed
+   *
+   * @private
+   * @type {Function[]}
+   * @memberof Semaphore
+   */
   private _heads: Function[];
 
-  private _completeFn!: PlaceholderFn;
+  private _completeFn!: VoidFn;
   private _completePr!: Promise<void>;
 
+  /**
+   * Creates an instance of Semaphore.
+   * @param {number} max The maximum number of concurrent executions.
+   * @memberof Semaphore
+   */
   constructor(public max: number) {
     if (max <= 0) throw new Error('size must be positive');
     this._available = max;
@@ -19,17 +53,8 @@ export class Semaphore {
   }
 
   /**
-   * Resizes the semaphore to the specified size.
-   *
-   * @param {number} max The new size of the semaphore.
-   * @memberof Semaphore
-   */
-  public resize(max: number) {
-    this.max = max;
-  }
-
-  /**
-   * Executes a function and returns a promise that resolves when the function completes.
+   * Wait for the semaphore to be empty and then execute the function. The result of the function is returned
+   * upon completion.
    *
    * @template A The return type of the function.
    * @param {() => Promise<A>} fn The function to execute.
@@ -68,6 +93,17 @@ export class Semaphore {
   }
 
   /**
+   * Resizes the semaphore to the specified size.
+   *
+   * @param {number} max The new size of the semaphore.
+   * @memberof Semaphore
+   */
+  public resize(max: number) {
+    this._available += max - this.max;
+    this.max = max;
+  }
+
+  /**
    * Executes the function and releases the semaphore.
    *
    * @private
@@ -85,13 +121,12 @@ export class Semaphore {
   }
 
   /**
-   * Returns the current queue of functions.
+   * Returns the current queue of pending functions.
    *
    * @private
    * @returns {Function[]} The current queue of functions.
    * @memberof Semaphore
    */
-  // eslint-disable-next-line @typescript-eslint/ban-types
   private _queue(): Function[] {
     if (!this._heads.length) {
       this._heads = this._upcoming.reverse();
@@ -100,12 +135,19 @@ export class Semaphore {
     return this._heads;
   }
 
+  /**
+   * Acquires the semaphore and executes the function.
+   *
+   * @private
+   * @returns {(void | Promise<void>)}
+   * @memberof Semaphore
+   */
   private _acquire(): void | Promise<void> {
     if (this._available > 0) {
       this._available -= 1;
       return undefined;
     } else {
-      let fn: PlaceholderFn = () => {
+      let fn: VoidFn = () => {
         /***/
       };
       const defer = new Promise<void>(resolve => {
@@ -116,6 +158,12 @@ export class Semaphore {
     }
   }
 
+  /**
+   * Releases the semaphore when the function completes.
+   *
+   * @private
+   * @memberof Semaphore
+   */
   private _release(): void {
     const queue = this._queue();
     if (queue.length) {
@@ -132,8 +180,14 @@ export class Semaphore {
     }
   }
 
+  /**
+   * Refreshes the promise that resolves when the semaphore is empty.
+   *
+   * @private
+   * @memberof Semaphore
+   */
   private _refreshComplete(): void {
-    let fn: PlaceholderFn = () => {
+    let fn: VoidFn = () => {
       /***/
     };
     this._completePr = new Promise<void>(resolve => {

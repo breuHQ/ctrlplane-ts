@@ -25,45 +25,46 @@ import { randomInt } from 'crypto';
  *
  *
  * @export
- * @param {number} count The number of environments to generate
+ * @param {number} max The number of environments to generate
  * @returns {TestEnvironment[]} The generated environments
  */
-export function createTestEnvironments(count: number): TestEnvironment[] {
-  const generateIdPool = (count: number) => {
-    const ids = [];
-    for (let i = 0; i < count / 2; i++) {
-      ids.push(nanoid());
-    }
-    return ids;
-  };
+export const createTestEnvironments = (max: number): TestEnvironment[] => {
+  // const generateIdPool = (count: number) => {
+  //   const ids = [];
+  //   for (let i = 0; i < count / 2; i++) {
+  //     ids.push(nanoid());
+  //   }
+  //   return ids;
+  // };
 
   // const pool = generateIdPool(count);
+
   const pool = [
     '_A1wlDdJxkGTGHmefDw0E',
     '-Pe4GvAnoCzJXiVHxHRkT',
     'BhCoT7m0xL3SnI1iKrNUW',
     'EreT7CaPN0mVdIll1oXaF',
     'g7OKuKSRMez2Gk30c0lzz',
-    'gFeJ-D7pMymFIhQdZMjP5',
-    'Jyp4k5nH13MsPzTtmpyzi',
-    'L5yyyTBrWQCC99KleRt7j',
-    'l9AX6_IMXm5R1ZS4UYkd-',
-    'lr86-Sv-Rg_pFcb1G05Sj',
-    'MHazmhy5O_5DmXTOJGdD4',
-    'nMCoLbNrl4iDaxUZVuVgx',
-    'qnAen3tNcupcLq91Kh_Gd',
-    'QnuuMTHdeEFhX02fR1Xkl',
-    'qSSNmsa7mnP3wkHpG3r4W',
-    'qYlTg2z9SatGCKFOvOMJ6',
-    'S3MSn4TCyuN8zLwf_pZZs',
-    'shxLs3zvPTfflU9YgPK-J',
-    'si3oh3MUgDCVtxO2KM_6u',
-    't0xOBR9oqq-qUvk3yUbbO',
-    'tXTskvYDaxwrQ9ZsIIEgA',
-    'UQOu7TVpK8wVG59m5lufU',
-    'vYjp_lM2yMeGQ3-zgM4ks',
-    'YXGeAbQxQr8R4j8HxiMH1',
-    'zV3IabnSgcqrxL9gtsq-T',
+    // 'gFeJ-D7pMymFIhQdZMjP5',
+    // 'Jyp4k5nH13MsPzTtmpyzi',
+    // 'L5yyyTBrWQCC99KleRt7j',
+    // 'l9AX6_IMXm5R1ZS4UYkd-',
+    // 'lr86-Sv-Rg_pFcb1G05Sj',
+    // 'MHazmhy5O_5DmXTOJGdD4',
+    // 'nMCoLbNrl4iDaxUZVuVgx',
+    // 'qnAen3tNcupcLq91Kh_Gd',
+    // 'QnuuMTHdeEFhX02fR1Xkl',
+    // 'qSSNmsa7mnP3wkHpG3r4W',
+    // 'qYlTg2z9SatGCKFOvOMJ6',
+    // 'S3MSn4TCyuN8zLwf_pZZs',
+    // 'shxLs3zvPTfflU9YgPK-J',
+    // 'si3oh3MUgDCVtxO2KM_6u',
+    // 't0xOBR9oqq-qUvk3yUbbO',
+    // 'tXTskvYDaxwrQ9ZsIIEgA',
+    // 'UQOu7TVpK8wVG59m5lufU',
+    // 'vYjp_lM2yMeGQ3-zgM4ks',
+    // 'YXGeAbQxQr8R4j8HxiMH1',
+    // 'zV3IabnSgcqrxL9gtsq-T',
   ];
 
   const fromPool = () => pool[randomInt(0, pool.length - 1)];
@@ -72,7 +73,7 @@ export function createTestEnvironments(count: number): TestEnvironment[] {
     id: factory.each(() => nanoid()),
     continue: factory.each(() => Math.random() > 0.5),
     sleepSeconds: factory.each(() => {
-      const count = Math.floor(Math.random() * 50);
+      const count = Math.floor(Math.random() * max);
       return count < 1 ? 1 : count;
     }),
   });
@@ -80,11 +81,11 @@ export function createTestEnvironments(count: number): TestEnvironment[] {
   const testEnvironmentFactory = factory.Sync.makeFactory<TestEnvironment>({
     id: factory.each(fromPool),
     maxParallism: factory.each(() => {
-      const count = Math.floor(Math.random() * 10);
+      const count = Math.floor(Math.random() * max);
       return count < 1 ? 1 : count;
     }),
-    tests: factory.each(() => testPlanFactory.buildList(Math.floor(Math.random() * 250))),
+    tests: factory.each(() => testPlanFactory.buildList(Math.floor(Math.random() * max))),
   });
 
-  return testEnvironmentFactory.buildList(count);
-}
+  return testEnvironmentFactory.buildList(max);
+};

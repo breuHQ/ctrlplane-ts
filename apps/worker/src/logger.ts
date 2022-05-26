@@ -1,31 +1,24 @@
+import { LogLevel } from '@temporalio/core-bridge';
 import { LEVEL, MESSAGE, SPLAT } from 'triple-beam';
-// import util from 'util';
+import util from 'util';
 import winston from 'winston';
 
-/** Turns a given timestamp or current Date to an ISO date string */
-function getDateStr(timestamp?: number): string {
-  return timestamp ? new Date(timestamp).toJSON() : new Date().toJSON();
-}
-
-/** Format function for logging in development */
-const formatLog = winston.format.printf(({ level, message, label, timestamp, ...rest }) => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-
+export const formatLog = winston.format.printf(({ level, message, label, timestamp, ...rest }) => {
   // The type signature in winston is wrong
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { [LEVEL]: _lvl, [SPLAT]: _splt, [MESSAGE]: _msg, ...restNoSymbols } = rest as Record<string | symbol, unknown>;
-  return `${level.toUpperCase()}: ${getDateStr(timestamp)} [${label}] ${message}`;
 
-  // return Object.keys(restNoSymbols).length === 0
-  //   ? `${getDateStr(timestamp)} [${level}] [${label}]: ${message}`
-  //   : `${getDateStr(timestamp)} [${level}] [${label}]: ${message} ${util.inspect(restNoSymbols, false, 4, true)}`;
+  return Object.keys(restNoSymbols).length === 0
+    ? `${timestampToISO(timestamp)} [${level}] [${label}]: ${message}`
+    : `${timestampToISO(timestamp)} [${level}] [${label}]: ${message} ${util.inspect(restNoSymbols, false, 4, true)}`;
 });
 
-/** Create a winston logger from given options */
-export function createLogger(): winston.Logger {
-  return winston.createLogger({
-    level: 'debug',
+export const createLogger = (logLevel: LogLevel): winston.Logger =>
+  winston.createLogger({
+    level: logLevel.toLocaleLowerCase(),
     format: winston.format.combine(formatLog),
     transports: [new winston.transports.Console()],
   });
-}
+
+export const timestampToISO = (timestamp: number): string =>
+  timestamp ? new Date(timestamp).toJSON() : new Date().toJSON();

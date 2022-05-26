@@ -23,9 +23,9 @@ export class WorkflowInboundLogInterceptor implements WorkflowInboundCallsInterc
     } finally {
       const durationMs = Date.now() - startTime;
       if (error) {
-        logger.error('workflow failed', { error, durationMs });
+        logger.error('Failed', { error, durationMs });
       } else {
-        logger.debug('workflow completed', { durationMs });
+        logger.debug('Completed', { durationMs });
       }
     }
   }

@@ -10,8 +10,9 @@
     "winston": "^3.7.0"
   },
   "devDependencies": {
+    "ts-jest": "^28.0.3",
     "typescript": "~4.6"
   },
   "author": "Yousuf Jawwad <ysf@breu.io>",
-  "license": "ISC"
+  "license": "Unlicesed"
 }

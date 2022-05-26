@@ -5,6 +5,28 @@ type VoidFn = () => void;
 /**
  * Given a number, creates a semaphore that can be used to limit the number of concurrent executions.
  *
+ * @example Initialize a semaphore with a max of 5 concurrent executions
+ *
+ * ```ts
+ * const semaphore = new Semaphore(5);
+ * ```
+ *
+ * @example Executes a function with a semaphore, and wait for the promise to resolve
+ *
+ * ```ts
+ * const fn = async () => "Hello World";
+ *
+ * const result = await semaphore.fire(fn());
+ * ```
+ *
+ * @example Executes a function while ignoring the result
+ *
+ * ```ts
+ * const fn = async () => "Hello World";
+ *
+ * sempahore.fireAndForget(fn());
+ * ```
+ *
  * @export
  * @class Semaphore
  */
@@ -19,7 +41,7 @@ export class Semaphore {
   private _available: number;
 
   /**
-   * Executions that are in the queue.
+   * Executions waiting for semaphore slots to be available.
    *
    * @private
    * @type {Function[]}
@@ -28,7 +50,7 @@ export class Semaphore {
   private _upcoming: Function[];
 
   /**
-   * Exections that are being executed
+   * Exections in progress
    *
    * @private
    * @type {Function[]}

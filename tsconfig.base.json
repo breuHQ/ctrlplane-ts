@@ -20,7 +20,7 @@
       "@ctrlplane/common/activities": ["packages/common/src/activities.ts"],
       "@ctrlplane/common/models": ["packages/common/src/models.ts"],
       "@ctrlplane/common/names": ["packages/common/src/names.ts"],
-      "@ctrlplane/common/utils": ["packages/common/src/utils.ts"],
+      "@ctrlplane/common/utils": ["packages/common/src/utils/index.ts"],
       "@ctrlplane/common/workflows": ["packages/common/src/workflows.ts"],
       "@ctrlplane/workflows/env-ctrl": ["packages/workflows/env-ctrl/src/index.ts"],
       "@ctrlplane/workflows/env-ctrl/workflows": ["packages/workflows/env-ctrl/src/workflows.ts"]

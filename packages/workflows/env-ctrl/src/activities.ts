@@ -1,7 +1,6 @@
 import { getContext } from '@ctrlplane/common/activities';
 import { TestPlan } from '@ctrlplane/common/models';
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+import { sleep } from '@ctrlplane/common/utils';
 
 export const createEnvironment: (plan: TestPlan) => Promise<void> = async plan => {
   const context = getContext();

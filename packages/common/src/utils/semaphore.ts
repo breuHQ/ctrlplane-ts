@@ -40,6 +40,10 @@ export class Semaphore {
    */
   private _available: number;
 
+  get available(): number {
+    return this._available;
+  }
+
   /**
    * Executions waiting for semaphore slots to be available.
    *

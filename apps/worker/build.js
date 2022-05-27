@@ -19,8 +19,8 @@ await build({
   external: ['@temporalio/*', ...external],
   outdir: './build',
   treeShaking: true,
-  minifyIdentifiers: true,
-  minifySyntax: true,
+  // minifyIdentifiers: true,
+  // minifySyntax: true,
   // watch: true,
 });
 

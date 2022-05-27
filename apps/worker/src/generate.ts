@@ -71,7 +71,6 @@ export const createTestEnvironments = (max: number): TestEnvironment[] => {
 
   const testPlanFactory = factory.Sync.makeFactory<TestPlan>({
     id: factory.each(() => nanoid()),
-    continue: factory.each(() => Math.random() > 0.5),
     sleepSeconds: factory.each(() => {
       const count = Math.floor(Math.random() * max);
       return count < 1 ? 1 : count;
@@ -84,6 +83,7 @@ export const createTestEnvironments = (max: number): TestEnvironment[] => {
       const count = Math.floor(Math.random() * max);
       return count < 1 ? 1 : count;
     }),
+    continue: factory.each(() => Math.random() > 0.5),
     tests: factory.each(() => testPlanFactory.buildList(Math.floor(Math.random() * max))),
   });
 

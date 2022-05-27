@@ -40,14 +40,14 @@ export const createTestEnvironments = (max: number): TestEnvironment[] => {
   // const pool = generateIdPool(count);
 
   const pool = [
-    '_A1wlDdJxkGTGHmefDw0E',
-    '-Pe4GvAnoCzJXiVHxHRkT',
+    // '_A1wlDdJxkGTGHmefDw0E',
+    // '-Pe4GvAnoCzJXiVHxHRkT',
     'BhCoT7m0xL3SnI1iKrNUW',
     'EreT7CaPN0mVdIll1oXaF',
     'g7OKuKSRMez2Gk30c0lzz',
-    // 'gFeJ-D7pMymFIhQdZMjP5',
-    // 'Jyp4k5nH13MsPzTtmpyzi',
-    // 'L5yyyTBrWQCC99KleRt7j',
+    'gFeJ-D7pMymFIhQdZMjP5',
+    'Jyp4k5nH13MsPzTtmpyzi',
+    'L5yyyTBrWQCC99KleRt7j',
     // 'l9AX6_IMXm5R1ZS4UYkd-',
     // 'lr86-Sv-Rg_pFcb1G05Sj',
     // 'MHazmhy5O_5DmXTOJGdD4',

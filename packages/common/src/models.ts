@@ -11,12 +11,12 @@ export interface LoggerSinks extends Sinks {
 
 export interface TestPlan {
   id: string;
-  continue: boolean;
   sleepSeconds: number;
 }
 
 export interface TestEnvironment {
   id: string;
+  continue: boolean;
   maxParallism: number;
   tests: Array<TestPlan>;
 }

@@ -1,12 +1,18 @@
 import { TestEnvironment } from '@ctrlplane/common/models';
+import { Semaphore } from '@ctrlplane/common/utils';
 import {
   logger,
-  WorkflowInboundLogInterceptor,
   UpdateEnvironmentControllerlWorkflowSignal,
+  WorkflowInboundLogInterceptor,
 } from '@ctrlplane/common/workflows';
-import { proxyActivities, WorkflowInterceptorsFactory, setHandler } from '@temporalio/workflow';
+import {
+  CancellationScope,
+  proxyActivities,
+  setHandler,
+  WorkflowInterceptorsFactory,
+  isCancellation,
+} from '@temporalio/workflow';
 import type * as activities from './activities';
-import { Semaphore } from '@ctrlplane/common/utils';
 
 const activity = proxyActivities<typeof activities>({
   startToCloseTimeout: '60 minutes',
@@ -14,42 +20,60 @@ const activity = proxyActivities<typeof activities>({
 
 /**
  * Environment Controller Workflow is the parent workflow responsible for managing the number of parallel tests
- * executions for a given customer.
+ * executions for a given customer. The workflow is meant only to be started with `signalWithStart`.
  *
- * @param {TestEnvironment} env The environment to create
+ * @param {TestEnvironment} environment The environment to create
  * @return {Promise<void>}
  */
-export const EnvrionmentControllerWorkflow = async (env: TestEnvironment): Promise<void> => {
-  let size: number;
-  size = env.maxParallism;
+export const EnvrionmentControllerWorkflow = async (environment: TestEnvironment): Promise<void> => {
   const results: Array<Promise<void>> = [];
-  const semaphore = new Semaphore(env.maxParallism);
-  logger.info(`Starting ... `);
-  logger.info(`Test: ${env.tests.length}`);
-  logger.info(`Max Parallelism: ${env.maxParallism}`);
+  const semaphore = new Semaphore(environment.maxParallism);
+  const scope = new CancellationScope();
 
-  for (const plan of env.tests) {
-    logger.info(`[act-${plan.id}] Scheduling [${plan.sleepSeconds}s]`);
-    results.push(semaphore.fire(() => activity.createEnvironment(plan)));
-  }
+  // await scope.run(async () => {
+  //   logger.info(`Start .... [${semaphore.max} / ${environment.tests.length}]`);
+
+  //   setHandler(UpdateEnvironmentControllerlWorkflowSignal, async signal => {
+  //     logger.info(
+  //       `Updating ... [${semaphore.max} -> ${signal.maxParallism} / ${signal.tests.length}] / ${signal.continue}`,
+  //     );
+  //     semaphore.resize(signal.maxParallism);
+
+  //     if (signal.continue) {
+  //       for (const plan of signal.tests) {
+  //         results.push(semaphore.fire(() => activity.createEnvironment(plan)));
+  //       }
+  //     } else {
+  //       scope.cancel();
+  //       logger.info('Cancelling ...');
+  //     }
+  //   });
+  //   await semaphore.awaitTerminate();
+  //   logger.info('Scope Terminated');
+
+  //   return;
+  // });
 
   setHandler(UpdateEnvironmentControllerlWorkflowSignal, async signal => {
-    logger.info(`Signaling update ...`);
-    logger.info(`Tests: ${signal.tests.length}`);
-    logger.info(`Max Parralism [New || Old]: ${signal.maxParallism} || ${size}`);
-    logger.info(`Resizing Semaphore to ${signal.maxParallism}`);
-    size = signal.maxParallism;
-    semaphore.resize(signal.maxParallism);
-
-    for (const plan of signal.tests) {
-      logger.info(`[act-${plan.id}] Scheduling [${plan.sleepSeconds}s]`);
-      results.push(semaphore.fire(() => activity.createEnvironment(plan)));
-    }
+    scope.run(async () => {
+      semaphore.resize(signal.maxParallism);
+      logger.info(
+        `Updating ... [${semaphore.max} -> ${signal.maxParallism} / ${signal.tests.length}] / ${signal.continue}`,
+      );
+      if (signal.continue) {
+        for (const plan of signal.tests) {
+          results.push(semaphore.fire(() => activity.createEnvironment(plan)));
+        }
+      } else {
+        scope.cancel();
+        logger.info('Cancelling ...');
+      }
+      return;
+    });
   });
 
   await semaphore.awaitTerminate();
-
-  logger.info(`Finished`);
+  logger.info('Finished');
   return;
 };
 

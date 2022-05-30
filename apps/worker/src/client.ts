@@ -2,7 +2,7 @@ import { EnvrionmentControllerWorkflow } from '@ctrlplane/workflows/env-ctrl/wor
 import { QUEUE_ENV_CTRL } from '@ctrlplane/common/names';
 import { Connection, WorkflowClient } from '@temporalio/client';
 import { createTestEnvironments } from './generate';
-import { UpdateEnvironmentControllerlWorkflowSignal } from '@ctrlplane/common/workflows';
+import { UpdateEnvironmentControllerlWorkflowSignal } from '@ctrlplane/common/signals';
 
 const run = async () => {
   const connection = new Connection({});

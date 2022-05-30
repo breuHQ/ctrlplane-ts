@@ -1,5 +1,5 @@
 import { Semaphore } from './semaphore';
-import { sleep } from './sleep';
+import { sleep } from '@temporalio/workflow';
 
 describe('Semaphore', () => {
   let semaphore: Semaphore;

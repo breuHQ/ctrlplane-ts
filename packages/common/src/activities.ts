@@ -43,11 +43,11 @@ export class ActivityInboundLogInterceptor implements ActivityInboundCallsInterc
       if (error) {
         // this.logger.error('Failed', { error, durationMs });
         this.logger.error(
-          `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${this.info.activityId}]: Error ${durationMs}ms ${error}`,
+          `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${this.info.activityId}] Error ${durationMs}ms ${error}`,
         );
       } else {
         this.logger.debug(
-          `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${this.info.activityId}]: Completed ${durationMs}ms`,
+          `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${this.info.activityId}] Completed ${durationMs}ms`,
         );
       }
     }

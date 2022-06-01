@@ -48,42 +48,36 @@ export const runTest: (plan: TestPlan) => Promise<void> = async plan => {
 
     const k8sBatch = k8sConfig.makeApiClient(BatchV1Api);
 
-    const listFn = () => k8sBatch.listNamespacedJob('default');
+    const listFn = () =>
+      k8sBatch.listNamespacedJob('default', undefined, undefined, undefined, undefined, labelSelector);
 
     const informer = makeInformer(k8sConfig, '/apis/batch/v1/namespaces/default/jobs', listFn, labelSelector);
 
-    informer.on('add', event => {
+    informer.on('add', () => {
       ctx.logger.info(
-        `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${event.metadata?.name}] Starting ... `,
+        `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${plan.sleepSeconds}s] Starting ... `,
       );
     });
 
-    informer.on('update', event => {
-      ctx.logger.info(
-        `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${event.metadata?.name}] HeartBeat ...`,
-      );
-      ctx.heartbeat();
-    });
+    // informer.on('update', event => {
+    //   ctx.logger.info(
+    //     `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${plan.sleepSeconds}s] HeartBeat ...`,
+    //   );
+    //   ctx.heartbeat();
+    // });
 
     informer.on('change', event => {
-      ctx.logger.info(`[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] Change ...`);
+      ctx.logger.info(
+        `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${plan.sleepSeconds}s] Heartbeat ...`,
+      );
       if (event.status?.succeeded) {
         informer.stop().then(() => {
-          ctx.logger.info(`[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] Cleaning Up ...`);
+          ctx.logger.info(
+            `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${plan.sleepSeconds}s] Finished`,
+          );
           resolve();
         });
       }
-    });
-
-    informer.on('delete', event => {
-      ctx.logger.info(
-        `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] ${JSON.stringify(event, null, 2)}`,
-      );
-      resolve();
-    });
-
-    informer.on('error', () => {
-      informer.start();
     });
 
     informer.start().then(() => {

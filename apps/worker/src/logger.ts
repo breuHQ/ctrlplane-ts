@@ -8,7 +8,7 @@ export const formatLog = winston.format.printf(({ level, message, label, timesta
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { [LEVEL]: _lvl, [SPLAT]: _splt, [MESSAGE]: _msg, ...restNoSymbols } = rest as Record<string | symbol, unknown>;
 
-  return `${timestampToISO(timestamp)} [${level}] [${label}]: ${message}`;
+  return `${timestampToISO(timestamp)} [${level}] [${label}] ${message}`;
 
   // return Object.keys(restNoSymbols).length === 0
   //   ? `${timestampToISO(timestamp)} [${level}] [${label}]: ${message}`

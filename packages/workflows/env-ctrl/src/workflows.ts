@@ -32,7 +32,7 @@ export const EnvrionmentControllerWorkflow = async (environment: TestEnvironment
     logger.info(info);
     semaphore.resize(signal.maxParallism);
     for (const plan of signal.tests) {
-      const workflowId = `env-${environment.id}-plan-${plan.id}`;
+      const workflowId = `plan-${plan.id}`;
       logger.info(`Scheduling Test ... [${workflowId}]`);
       results.push(semaphore.fire(() => executeChild(TestRunnerWorkflow, { workflowId, args: [plan] })));
     }

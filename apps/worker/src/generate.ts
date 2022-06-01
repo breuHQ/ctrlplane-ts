@@ -1,7 +1,10 @@
 import { TestEnvironment, TestPlan } from '@ctrlplane/common/models';
 import * as factory from 'factory.ts';
-import { nanoid } from 'nanoid';
+import { customAlphabet } from 'nanoid';
 import { randomInt } from 'crypto';
+
+const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+const nanoid = customAlphabet(alphabet, 21);
 
 /**
  * # Given the count, generate a list of test environments.

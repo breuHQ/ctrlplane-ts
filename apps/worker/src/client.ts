@@ -12,7 +12,7 @@ const run = async () => {
     taskQueue: QUEUE_ENV_CTRL,
   };
 
-  const testEnvironments = createTestEnvironments(25);
+  const testEnvironments = createTestEnvironments(5);
 
   for (const env of testEnvironments) {
     await client.signalWithStart(EnvrionmentControllerWorkflow, {

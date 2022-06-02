@@ -1,6 +1,5 @@
 import { getContext } from '@ctrlplane/common/activities';
 import { TestPlan } from '@ctrlplane/common/models';
-// import { sleep } from '@ctrlplane/common/utils';
 import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta, makeInformer } from '@kubernetes/client-node';
 
 const createJobSpec = (runId: string, plan: TestPlan) => {
@@ -58,13 +57,6 @@ export const runTest: (plan: TestPlan) => Promise<void> = async plan => {
         `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${plan.sleepSeconds}s] Starting ... `,
       );
     });
-
-    // informer.on('update', event => {
-    //   ctx.logger.info(
-    //     `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${plan.sleepSeconds}s] HeartBeat ...`,
-    //   );
-    //   ctx.heartbeat();
-    // });
 
     informer.on('change', event => {
       ctx.logger.info(

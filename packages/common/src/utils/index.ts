@@ -1,2 +1,2 @@
 export { Semaphore } from './semaphore';
-export { sleep } from './sleep';
+export { sleep, noop } from './extras';

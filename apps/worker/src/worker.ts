@@ -1,8 +1,8 @@
 import { ActivityInboundLogInterceptor } from '@ctrlplane/common/activities';
 import { LoggerSinks } from '@ctrlplane/common/models';
 import { QUEUE_ENV_CTRL } from '@ctrlplane/common/names';
-import { activities } from '@ctrlplane/workflows/env-ctrl';
-import { DefaultLogger, InjectedSinks, Runtime, Worker, LogLevel } from '@temporalio/worker';
+import * as activities from '@ctrlplane/workflows/activities';
+import { DefaultLogger, InjectedSinks, LogLevel, Runtime, Worker } from '@temporalio/worker';
 import { WorkflowInfo } from '@temporalio/workflow';
 import path from 'path';
 import { createLogger } from './logger';

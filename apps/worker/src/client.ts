@@ -1,4 +1,4 @@
-import { EnvrionmentControllerWorkflow } from '@ctrlplane/workflows/env-ctrl/workflows';
+import { EnvrionmentControllerWorkflow } from '@ctrlplane/workflows/workflows';
 import { QUEUE_ENV_CTRL } from '@ctrlplane/common/names';
 import { Connection, WorkflowClient } from '@temporalio/client';
 import { createTestEnvironments } from './generate';

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
-type VoidFn = () => void;
+import { noop, Noop } from './extras';
 
 /**
  * Given a number, creates a semaphore that can be used to limit the number of concurrent executions.
@@ -62,7 +62,7 @@ export class Semaphore {
    */
   private _heads: Function[];
 
-  private _completeFn!: VoidFn;
+  private _completeFn!: Noop;
   private _completePr!: Promise<void>;
 
   /**
@@ -173,9 +173,7 @@ export class Semaphore {
       this._available -= 1;
       return undefined;
     } else {
-      let fn: VoidFn = () => {
-        /***/
-      };
+      let fn: Noop = noop;
       const defer = new Promise<void>(resolve => {
         fn = resolve;
       });
@@ -213,9 +211,7 @@ export class Semaphore {
    * @memberof Semaphore
    */
   private _refreshComplete(): void {
-    let fn: VoidFn = () => {
-      /***/
-    };
+    let fn: Noop = noop;
     this._completePr = new Promise<void>(resolve => {
       fn = resolve;
     });

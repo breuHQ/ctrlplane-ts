@@ -1,5 +1,5 @@
 {
-  "name": "@ctrlplane/workflows--env-ctrl",
+  "name": "@ctrlplane/workflows",
   "version": "0.0.1",
   "private": true,
   "description": "Environment controller workflow to control maximum parallel activities.",

@@ -1,1 +1,1 @@
-export { EnvrionmentControllerWorkflow, TestRunnerWorkflow, interceptors } from '@ctrlplane/workflows/workflows';
+export { EnvCtrlWorkflow, TestRunnerWorkflow, interceptors } from '@ctrlplane/workflows/workflows';

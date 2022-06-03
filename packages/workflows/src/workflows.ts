@@ -1,16 +1,24 @@
 import { TestEnvironment, TestPlan } from '@ctrlplane/common/models';
-import { UpdateEnvironmentControllerlWorkflowSignal } from '@ctrlplane/common/signals';
-import { Semaphore } from '@ctrlplane/common/utils';
-import { WorkflowInboundLogInterceptor } from '@ctrlplane/common/workflows';
+import { noop, Semaphore } from '@ctrlplane/common/utils';
+import { WorkflowInboundLogInterceptor, logger } from '@ctrlplane/common/workflows';
 import { executeChild, proxyActivities, setHandler, WorkflowInterceptorsFactory } from '@temporalio/workflow';
 import type * as activities from './activities';
+import { TerminateTestRunnerWorkflow, UpdateEnvCtrlWorkflow } from './signals';
 
 const { runTest } = proxyActivities<typeof activities>({
   startToCloseTimeout: '60 minutes',
 });
 
+/**
+ * Test runner workflow.
+ *
+ * @param {TestPlan} plan The test plan to run
+ * @returns {Promise<void>}
+ */
 export const TestRunnerWorkflow = async (plan: TestPlan): Promise<void> => {
   await runTest(plan);
+
+  setHandler(TerminateTestRunnerWorkflow, async signal => noop());
   return;
 };
 
@@ -21,17 +29,22 @@ export const TestRunnerWorkflow = async (plan: TestPlan): Promise<void> => {
  * @param {TestEnvironment} environment The environment to create
  * @return {Promise<void>}
  */
-export const EnvrionmentControllerWorkflow = async (environment: TestEnvironment): Promise<void> => {
+export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<void> => {
   const results: Array<Promise<void>> = [];
   const semaphore = new Semaphore(environment.maxParallism);
 
-  setHandler(UpdateEnvironmentControllerlWorkflowSignal, async signal => {
+  const _update = async (signal: TestEnvironment) => {
     semaphore.resize(signal.maxParallism);
-    for (const plan of signal.tests) {
-      const workflowId = `plan-${plan.id}`;
-      results.push(semaphore.fire(() => executeChild(TestRunnerWorkflow, { workflowId, args: [plan] })));
+
+    if (signal.continue) {
+      for (const plan of signal.tests) {
+        const workflowId = `plan-${plan.id}`;
+        results.push(semaphore.fire(() => executeChild(TestRunnerWorkflow, { workflowId, args: [plan] })));
+      }
     }
-  });
+  };
+
+  setHandler(UpdateEnvCtrlWorkflow, _update);
 
   await semaphore.awaitTerminate();
   return;

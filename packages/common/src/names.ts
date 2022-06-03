@@ -1,2 +1,3 @@
-export const QUEUE_ENV_CTRL = 'env-ctrl';
-export const SIGNAL_UPDATE_ENVIRONMENT_CTRL_WORKFLOW = 'update-environment-controller-workflow';
+export const QUEUE_ENV_CTRL = 'q-env-ctrl';
+export const SIG_UPDATE_ENV_CTRL_WORKFLOW = 'update-env-ctrl-workflow';
+export const SIG_TERMINATE_TEST_RUNNER_WORKFLOW = 'terminate-test-runner-workflow';

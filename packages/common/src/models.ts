@@ -21,16 +21,17 @@ export interface TestEnvironment {
   tests: Array<TestPlan>;
 }
 
-export const enum ExecutionResultStatusType {
-  SUCCESS,
-  FAILURE,
-  SKIPPED,
-  TERMINATED,
+export const enum TestExecutionResultStatusType {
+  SUCCESS = 'SUCCESS',
+  FAILURE = 'FAILURE',
+  SKIPPED = 'SKIPPED',
+  TERMINATED = 'TERMINATED',
 }
 
-type ExectionResultStatus = keyof typeof ExecutionResultStatusType;
+export type TestExectionResultStatus = keyof typeof TestExecutionResultStatusType;
 
-export interface ExecutionResult {
+export interface TestExecutionResult {
   id: string;
-  status: ExectionResultStatus;
+  status: TestExectionResultStatus;
+  message?: string;
 }

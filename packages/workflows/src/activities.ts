@@ -1,5 +1,5 @@
 import { getContext } from '@ctrlplane/common/activities';
-import { TestPlan } from '@ctrlplane/common/models';
+import { TestPlan, TestExecutionResult, TestExecutionResultStatusType } from '@ctrlplane/common/models';
 import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta, makeInformer } from '@kubernetes/client-node';
 
 const createJobSpec = (runId: string, plan: TestPlan) => {
@@ -39,8 +39,8 @@ export const terminateTest: (plan: TestPlan) => Promise<void> = async plan => {
   return;
 };
 
-export const runTest: (plan: TestPlan) => Promise<void> = async plan => {
-  return new Promise((resolve, reject) => {
+export const runTest: (plan: TestPlan) => Promise<TestExecutionResult> = async plan => {
+  return new Promise((resolve, _) => {
     const ctx = getContext();
     const spec = createJobSpec(ctx.info.workflowExecution.runId, plan);
     const labelSelector = `ctrlplane.dev/plan-id=${plan.id}`;
@@ -71,14 +71,21 @@ export const runTest: (plan: TestPlan) => Promise<void> = async plan => {
           ctx.logger.info(
             `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${plan.sleepSeconds}s] Finished`,
           );
-          resolve();
+          resolve({
+            id: plan.id,
+            status: TestExecutionResultStatusType.SUCCESS,
+          });
         });
       }
     });
 
     informer.start().then(() => {
       k8sBatch.createNamespacedJob('default', spec).catch(err => {
-        reject(err.response.body.message);
+        resolve({
+          id: plan.id,
+          status: TestExecutionResultStatusType.FAILURE,
+          message: err.response.body.message,
+        });
       });
     });
   });

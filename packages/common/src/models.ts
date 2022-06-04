@@ -20,3 +20,17 @@ export interface TestEnvironment {
   maxParallism: number;
   tests: Array<TestPlan>;
 }
+
+export const enum ExecutionResultStatusType {
+  SUCCESS,
+  FAILURE,
+  SKIPPED,
+  TERMINATED,
+}
+
+type ExectionResultStatus = keyof typeof ExecutionResultStatusType;
+
+export interface ExecutionResult {
+  id: string;
+  status: ExectionResultStatus;
+}

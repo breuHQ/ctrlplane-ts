@@ -2,7 +2,7 @@ import { TestEnvironment, TestExecutionResult, TestExecutionResultStatus, TestPl
 import { Semaphore } from '@ctrlplane/common/utils';
 import { logger } from '@ctrlplane/common/workflows';
 import { ChildWorkflowHandle, proxyActivities, setHandler, startChild } from '@temporalio/workflow';
-import { from, map, mergeMap, ReplaySubject, Subject, take, takeUntil, tap } from 'rxjs';
+import { from, map, mergeMap, NEVER, ReplaySubject, Subject, switchMap, take, takeUntil, tap } from 'rxjs';
 import type * as activities from './activities';
 import { TerminateRunTestWorkflow, UpdateEnvCtrlWorkflow } from './signals';
 
@@ -23,12 +23,13 @@ interface RunTestWorkflowHandles {
 export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
   setHandler(TerminateRunTestWorkflow, async () => {
     logger.info('Terminating RunTestWorkflow');
+    await terminateTest(plan);
   });
   const result = await runTest(plan);
   return result;
 };
 
-export const SkilTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
+export const SkipTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
   return { id: plan.id, status: TestExecutionResultStatus.SKIPPED };
 };
 
@@ -42,33 +43,77 @@ export const SkilTestWorkflow = async (plan: TestPlan): Promise<TestExecutionRes
 export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<TestExecutionResult[]> => {
   return new Promise((resolve, _) => {
     /**
-     * Streaming of test plans to process
+     * Main Exection Queue
      */
     const queue$ = new ReplaySubject<TestPlan>();
     /**
+     * Waiting Queue.
+     */
+    const waiting$ = new ReplaySubject<TestPlan>();
+    /**
+     * When termination is requested, we use this subject as an indicator. In the meanwhile, we push the test plan
+     * to the waiting queue.
+     */
+    const paused$ = new Subject<boolean>();
+    paused$.next(false);
+    /**
      * Stream of results
      */
-    const result$ = new ReplaySubject<TestExecutionResult>(); // Stream of test execution results
+    const result$ = new ReplaySubject<TestExecutionResult>();
     /**
      * Signal to end the workflow
      */
     const end$ = new Subject<void>();
+    /**
+     * Semaphore to control the number of parallel tests
+     */
     const semaphore = new Semaphore(environment.maxParallism);
+    /**
+     * The total number of tests to run
+     */
     let total = 0;
-    const handles: RunTestWorkflowHandles = {}; // Childworkflow Handles because we need to signal them later
-    const results: TestExecutionResult[] = []; // List of test plans that have finished
+    let paused = false;
+    /**
+     * Workflow handler to signal termination
+     */
+    const handles: RunTestWorkflowHandles = {};
+    /**
+     * Test result accumulator
+     */
+    const results: TestExecutionResult[] = [];
+
+    const pause = () => {
+      paused$.next(true);
+      paused = true;
+    };
+    const resume = () => {
+      paused$.next(false);
+      paused = false;
+    };
 
     queue$
       .pipe(
         mergeMap(plan => semaphore.acquire().pipe(map(() => plan))),
         mergeMap(plan =>
-          from(startChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
-            tap(handle => (handles[plan.id] = handle)),
-          ),
+          paused
+            ? from(startChild(SkipTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
+                tap(handle => (handles[plan.id] = handle)),
+              )
+            : from(startChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
+                tap(handle => (handles[plan.id] = handle)),
+              ),
         ),
         mergeMap(handle => from(handle.result())),
         tap(result => result$.next(result)),
         tap(() => semaphore.release()),
+        takeUntil(end$),
+      )
+      .subscribe();
+
+    paused$
+      .pipe(
+        switchMap(paused => (paused ? NEVER : waiting$)),
+        tap(plan => queue$.next(plan)),
         takeUntil(end$),
       )
       .subscribe();
@@ -96,7 +141,7 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
       }
 
       for (const plan of signal.tests) {
-        queue$.next(plan);
+        waiting$.next(plan);
       }
     });
   });

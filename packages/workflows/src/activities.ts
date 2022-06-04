@@ -1,5 +1,5 @@
 import { getContext } from '@ctrlplane/common/activities';
-import { TestPlan, TestExecutionResult, TestExecutionResultStatusType } from '@ctrlplane/common/models';
+import { TestPlan, TestExecutionResult, TestExecutionResultStatus } from '@ctrlplane/common/models';
 import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta, makeInformer } from '@kubernetes/client-node';
 
 const createJobSpec = (runId: string, plan: TestPlan) => {
@@ -44,7 +44,6 @@ export const runTest: (plan: TestPlan) => Promise<TestExecutionResult> = async p
     const ctx = getContext();
     const spec = createJobSpec(ctx.info.workflowExecution.runId, plan);
     const labelSelector = `ctrlplane.dev/plan-id=${plan.id}`;
-    ctx.logger.info(`[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${plan.sleepSeconds}s]`);
 
     const k8sConfig = new KubeConfig();
     k8sConfig.loadFromDefault();
@@ -73,7 +72,7 @@ export const runTest: (plan: TestPlan) => Promise<TestExecutionResult> = async p
           );
           resolve({
             id: plan.id,
-            status: TestExecutionResultStatusType.SUCCESS,
+            status: TestExecutionResultStatus.SUCCESS,
           });
         });
       }
@@ -83,7 +82,7 @@ export const runTest: (plan: TestPlan) => Promise<TestExecutionResult> = async p
       k8sBatch.createNamespacedJob('default', spec).catch(err => {
         resolve({
           id: plan.id,
-          status: TestExecutionResultStatusType.FAILURE,
+          status: TestExecutionResultStatus.FAILURE,
           message: err.response.body.message,
         });
       });

@@ -7,10 +7,11 @@ export const formatLog = winston.format.printf(({ level, message, label, timesta
   // The type signature in winston is wrong
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { [LEVEL]: _lvl, [SPLAT]: _splt, [MESSAGE]: _msg, ...restNoSymbols } = rest as Record<string | symbol, unknown>;
+  return `${timestampToISO(timestamp)} [${level}] [${label}]: ${message}`;
 
-  return Object.keys(restNoSymbols).length === 0
-    ? `${timestampToISO(timestamp)} [${level}] [${label}]: ${message}`
-    : `${timestampToISO(timestamp)} [${level}] [${label}]: ${message} ${util.inspect(restNoSymbols, false, 4, true)}`;
+  // return Object.keys(restNoSymbols).length === 0
+  //   ? `${timestampToISO(timestamp)} [${level}] [${label}]: ${message}`
+  //   : `${timestampToISO(timestamp)} [${level}] [${label}]: ${message} ${util.inspect(restNoSymbols, false, 4, true)}`;
 });
 
 export const createLogger = (logLevel: LogLevel): winston.Logger =>

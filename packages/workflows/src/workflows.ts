@@ -1,7 +1,8 @@
-import { TestEnvironment, TestExecutionResult, TestPlan } from '@ctrlplane/common/models';
+import { TestEnvironment, TestExecutionResult, TestExecutionResultStatus, TestPlan } from '@ctrlplane/common/models';
 import { Semaphore } from '@ctrlplane/common/utils';
+import { logger } from '@ctrlplane/common/workflows';
 import { ChildWorkflowHandle, proxyActivities, setHandler, startChild } from '@temporalio/workflow';
-import { from, map, mergeMap, Subject, take, takeUntil, tap } from 'rxjs';
+import { from, map, mergeMap, ReplaySubject, Subject, take, takeUntil, tap } from 'rxjs';
 import type * as activities from './activities';
 import { TerminateRunTestWorkflow, UpdateEnvCtrlWorkflow } from './signals';
 
@@ -9,7 +10,9 @@ const { runTest, terminateTest } = proxyActivities<typeof activities>({
   startToCloseTimeout: '60 minutes',
 });
 
-type TestRunnerWorkflowHandle = ChildWorkflowHandle<typeof RunTestWorkflow>;
+interface RunTestWorkflowHandles {
+  [key: string]: ChildWorkflowHandle<typeof RunTestWorkflow>;
+}
 
 /**
  * Run The Test Workflow
@@ -18,8 +21,15 @@ type TestRunnerWorkflowHandle = ChildWorkflowHandle<typeof RunTestWorkflow>;
  * @returns {Promise<void>}
  */
 export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
-  setHandler(TerminateRunTestWorkflow, async () => await terminateTest(plan));
-  return runTest(plan);
+  setHandler(TerminateRunTestWorkflow, async () => {
+    logger.info('Terminating RunTestWorkflow');
+  });
+  const result = await runTest(plan);
+  return result;
+};
+
+export const SkilTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
+  return { id: plan.id, status: TestExecutionResultStatus.SKIPPED };
 };
 
 /**
@@ -29,36 +39,33 @@ export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResu
  * @param {TestEnvironment} environment The environment to create
  * @return {Promise<void>}
  */
-export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<void> => {
+export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<TestExecutionResult[]> => {
   return new Promise((resolve, _) => {
-    const queue$ = new Subject<TestPlan>(); // Streaming of incoming test plan
-    const result$ = new Subject<TestExecutionResult>(); // Stream of test execution results
-    const end$ = new Subject<void>(); // Signal to end the workflow. We want to make sure that we don't have unattended subscriptions.
-
+    /**
+     * Streaming of test plans to process
+     */
+    const queue$ = new ReplaySubject<TestPlan>();
+    /**
+     * Stream of results
+     */
+    const result$ = new ReplaySubject<TestExecutionResult>(); // Stream of test execution results
+    /**
+     * Signal to end the workflow
+     */
+    const end$ = new Subject<void>();
     const semaphore = new Semaphore(environment.maxParallism);
-    let planned: TestPlan[] = []; // List of test plans to run
-    const handles: TestRunnerWorkflowHandle[] = []; // Childworkflow Handles because we need to signal them later
+    let total = 0;
+    const handles: RunTestWorkflowHandles = {}; // Childworkflow Handles because we need to signal them later
     const results: TestExecutionResult[] = []; // List of test plans that have finished
-
-    setHandler(UpdateEnvCtrlWorkflow, async signal => {
-      if (!signal.continue) {
-        for (const handle of handles) {
-          handle.signal(TerminateRunTestWorkflow);
-        }
-      }
-      semaphore.resize(signal.maxParallism);
-      planned = [...planned, ...signal.tests];
-
-      for (const plan of signal.tests) {
-        queue$.next(plan);
-      }
-    });
 
     queue$
       .pipe(
         mergeMap(plan => semaphore.acquire().pipe(map(() => plan))),
-        mergeMap(plan => from(startChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] }))),
-        tap(handle => handles.push(handle)),
+        mergeMap(plan =>
+          from(startChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
+            tap(handle => (handles[plan.id] = handle)),
+          ),
+        ),
         mergeMap(handle => from(handle.result())),
         tap(result => result$.next(result)),
         tap(() => semaphore.release()),
@@ -69,13 +76,28 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<voi
     result$
       .pipe(
         tap(result => results.push(result)),
-        // If we have all the results, we can signal the end of the workflow
-        tap(() => planned.length && planned.length === results.length && end$.next()),
+        tap(result => delete handles[result.id]),
+        tap(() => total && total === results.length && end$.next()),
         takeUntil(end$),
       )
       .subscribe();
 
     // Resolve the promise when the workflow ends
-    end$.pipe(take(1)).subscribe(() => resolve());
+    end$.pipe(take(1)).subscribe(() => resolve(results));
+
+    setHandler(UpdateEnvCtrlWorkflow, async signal => {
+      total += signal.tests.length;
+      semaphore.resize(signal.maxParallism);
+
+      if (!signal.continue) {
+        for (const key in handles) {
+          handles.hasOwnProperty(key) && handles[key].signal(TerminateRunTestWorkflow);
+        }
+      }
+
+      for (const plan of signal.tests) {
+        queue$.next(plan);
+      }
+    });
   });
 };

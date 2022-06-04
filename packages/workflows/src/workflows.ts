@@ -12,7 +12,7 @@ import { from, map, mergeMap, Subject, take, takeUntil, tap } from 'rxjs';
 import type * as activities from './activities';
 import { TerminateTestRunnerWorkflow, UpdateEnvCtrlWorkflow } from './signals';
 
-const { runTest } = proxyActivities<typeof activities>({
+const { runTest, terminateTest } = proxyActivities<typeof activities>({
   startToCloseTimeout: '60 minutes',
 });
 
@@ -26,8 +26,7 @@ type TestRunnerWorkflowHandle = ChildWorkflowHandle<typeof TestRunnerWorkflow>;
  */
 export const TestRunnerWorkflow = async (plan: TestPlan): Promise<TestPlan> => {
   await runTest(plan);
-
-  setHandler(TerminateTestRunnerWorkflow, async () => noop());
+  setHandler(TerminateTestRunnerWorkflow, async () => await terminateTest(plan));
   return plan;
 };
 
@@ -50,16 +49,16 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<voi
     const results: TestPlan[] = []; // List of test plans that have finished
 
     setHandler(UpdateEnvCtrlWorkflow, async signal => {
-      if (signal.continue) {
-        planned = [...planned, ...signal.tests];
-
-        for (const plan of signal.tests) {
-          queue$.next(plan);
-        }
-      } else {
+      if (!signal.continue) {
         for (const handle of handles) {
           handle.signal(TerminateTestRunnerWorkflow);
         }
+      }
+
+      planned = [...planned, ...signal.tests];
+
+      for (const plan of signal.tests) {
+        queue$.next(plan);
       }
     });
 
@@ -77,14 +76,10 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<voi
 
     result$
       .pipe(
-        takeUntil(end$),
         tap(result => results.push(result)),
         // If we have all the results, we can signal the end of the workflow
-        tap(() => {
-          if (planned.length && planned.length === results.length) {
-            end$.next();
-          }
-        }),
+        tap(() => planned.length && planned.length === results.length && end$.next()),
+        takeUntil(end$),
       )
       .subscribe();
 

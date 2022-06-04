@@ -35,6 +35,10 @@ const createJobSpec = (runId: string, plan: TestPlan) => {
   return job;
 };
 
+export const terminateTest: (plan: TestPlan) => Promise<void> = async plan => {
+  return;
+};
+
 export const runTest: (plan: TestPlan) => Promise<void> = async plan => {
   return new Promise((resolve, reject) => {
     const ctx = getContext();

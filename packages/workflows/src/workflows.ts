@@ -35,7 +35,9 @@ export const SkipTestWorkflow = async (plan: TestPlan): Promise<TestExecutionRes
 
 /**
  * Environment Controller Workflow is the parent workflow responsible for managing the number of parallel tests
- * executions for a given customer. The workflow is meant only to be started with `signalWithStart`.
+ * executions for a given customer.
+ *
+ * NOTE: The workflow is meant only to be started with `signalWithStart`.
  *
  * @param {TestEnvironment} environment The environment to create
  * @return {Promise<void>}
@@ -82,27 +84,38 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
      */
     const results: TestExecutionResult[] = [];
 
-    const pause = () => {
+    /**
+     * Utility Functions
+     */
+
+    const _pause = () => {
       paused$.next(true);
       paused = true;
     };
-    const resume = () => {
+
+    const _resume = () => {
       paused$.next(false);
       paused = false;
     };
 
+    const _skitTest = (plan: TestPlan) =>
+      from(startChild(SkipTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
+        tap(handle => (handles[plan.id] = handle)),
+      );
+
+    const _runTest = (plan: TestPlan) =>
+      from(startChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
+        tap(handle => (handles[plan.id] = handle)),
+      );
+
+    /**
+     * Workflow Execution Logic
+     */
+
     queue$
       .pipe(
         mergeMap(plan => semaphore.acquire().pipe(map(() => plan))),
-        mergeMap(plan =>
-          paused
-            ? from(startChild(SkipTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
-                tap(handle => (handles[plan.id] = handle)),
-              )
-            : from(startChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
-                tap(handle => (handles[plan.id] = handle)),
-              ),
-        ),
+        mergeMap(plan => (paused ? _skitTest(plan) : _runTest(plan))),
         mergeMap(handle => from(handle.result())),
         tap(result => result$.next(result)),
         tap(() => semaphore.release()),
@@ -127,13 +140,16 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
       )
       .subscribe();
 
-    // Resolve the promise when the workflow ends
     end$.pipe(take(1)).subscribe(() => resolve(results));
 
+    /**
+     * NOTE: This workflow is only meant to be started with `signalWithStart`.
+     */
     setHandler(UpdateEnvCtrlWorkflow, async signal => {
       total += signal.tests.length;
       semaphore.resize(signal.maxParallism);
 
+      // TODO: handle the `pause` and `resume` logic
       if (!signal.continue) {
         for (const key in handles) {
           handles.hasOwnProperty(key) && handles[key].signal(TerminateRunTestWorkflow);

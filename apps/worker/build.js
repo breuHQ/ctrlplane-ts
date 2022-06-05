@@ -10,7 +10,7 @@ const external = [
 ];
 
 await build({
-  entryPoints: ['./src/client.ts', './src/worker.ts', './src/workflows.ts', './src/stream.ts'],
+  entryPoints: ['./src/client.ts', './src/worker.ts', './src/workflows.ts'],
   bundle: true,
   sourcemap: true,
   // format: 'cjs',

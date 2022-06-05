@@ -12,6 +12,7 @@ import {
   mergeMap,
   ReplaySubject,
   share,
+  Subject,
   take,
   takeUntil,
   tap,
@@ -43,7 +44,6 @@ export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResu
   // return result;
   return new Promise((resolve, _) => {
     setHandler(TerminateRunTestWorkflow, () => {
-      logger.info(`Terminate`);
       resolve({ id: plan.id, status: TestExecutionResultStatus.TERMINATED });
     });
     sleep(plan.sleepSeconds * 1000).then(() => resolve({ id: plan.id, status: TestExecutionResultStatus.SUCCESS }));
@@ -52,7 +52,6 @@ export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResu
 
 export const SkipTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
   return new Promise((resolve, _) => {
-    logger.info('Skipping test');
     resolve({ id: plan.id, status: TestExecutionResultStatus.SKIPPED });
   });
 };
@@ -112,7 +111,7 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
     /**
      * Signals for pause and resume.
      */
-    const pause$ = new ReplaySubject<boolean>();
+    const pause$ = new Subject<boolean>();
 
     const _pause$ = pause$.pipe(distinctUntilChanged(), share());
     const _on$ = _pause$.pipe(
@@ -172,11 +171,10 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
       .pipe(
         tap(result => results.push(result)),
         tap(result => delete handles[result.id]),
-        tap(() => logger.info(`${paused} + ${total} ? ${results.length}`)),
-        tap(() => logger.info(`Ending: ${total && total === results.length && !!(paused === 0)}`)),
-        tap(() => logger.info(`Resume: ${total && total === results.length && !!(paused > 0)}`)),
-        tap(() => total && total === results.length && !!(paused === 0) && end$.next()),
-        tap(() => total && total === results.length && !!(paused > 0) && pause$.next(false)),
+        // End the workflow if all tests are done
+        tap(() => !paused && total && total === results.length && end$.next()),
+        // Resume if the queue is ending, but there are some tests still waiting to be started
+        tap(() => paused && total && total === results.length && pause$.next(false)),
         takeUntil(end$),
       )
       .subscribe();
@@ -189,23 +187,20 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
     setHandler(UpdateEnvCtrlWorkflow, async signal => {
       semaphore.resize(signal.maxParallism);
 
-      // TODO: handle the `pause` and `resume` logic
-      if (signal.continue && total === 0 && paused === 0) {
-        logger.info(`Continue: ${paused} -> ${signal.continue}`);
+      if (paused === 0 && total === 0 && results.length === 0) {
         total += signal.tests.length;
+        // For the subsequent signals.
       } else {
-        logger.info(`Pause: ${paused} -> ${signal.continue}`);
-        pause$.next(true);
-        paused += signal.tests.length;
-        for (const key in handles) {
-          if (handles.hasOwnProperty(key)) {
-            handles[key].signal(TerminateRunTestWorkflow);
-          }
+        if (paused === 0 && signal.continue) {
+          total += signal.tests.length;
+        } else {
+          paused += signal.tests.length;
+          pause$.next(true);
         }
       }
 
       for (const plan of signal.tests) {
-        queue$.next(plan);
+        waiting$.next(plan);
       }
     });
   });

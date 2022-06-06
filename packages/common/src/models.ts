@@ -12,6 +12,7 @@ export interface LoggerSinks extends Sinks {
 export interface TestPlan {
   id: string;
   sleepSeconds: number;
+  environmentId?: string;
 }
 
 export interface TestEnvironment {

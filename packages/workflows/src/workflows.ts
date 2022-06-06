@@ -1,7 +1,6 @@
 import { TestEnvironment, TestExecutionResult, TestExecutionResultStatus, TestPlan } from '@ctrlplane/common/models';
 import { Semaphore } from '@ctrlplane/common/utils';
-import { logger } from '@ctrlplane/common/workflows';
-import { ChildWorkflowHandle, proxyActivities, setHandler, sleep, startChild } from '@temporalio/workflow';
+import { ChildWorkflowHandle, proxyActivities, setHandler, startChild } from '@temporalio/workflow';
 import {
   bufferToggle,
   distinctUntilChanged,
@@ -21,40 +20,13 @@ import {
 import type * as activities from './activities';
 import { TerminateRunTestWorkflow, UpdateEnvCtrlWorkflow } from './signals';
 
-const { runTest, terminateTest } = proxyActivities<typeof activities>({
+const { RunTest, TerminateTest } = proxyActivities<typeof activities>({
   startToCloseTimeout: '60 minutes',
 });
 
 interface RunTestWorkflowHandles {
   [key: string]: ChildWorkflowHandle<typeof RunTestWorkflow>;
 }
-
-/**
- * Run The Test Workflow
- *
- * @param {TestPlan} plan The test plan to run
- * @returns {Promise<void>}
- */
-export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
-  // setHandler(TerminateRunTestWorkflow, async () => {
-  //   logger.info('Terminating RunTestWorkflow');
-  //   await terminateTest(plan);
-  // });
-  // const result = await runTest(plan);
-  // return result;
-  return new Promise((resolve, _) => {
-    setHandler(TerminateRunTestWorkflow, () => {
-      resolve({ id: plan.id, status: TestExecutionResultStatus.TERMINATED });
-    });
-    sleep(plan.sleepSeconds * 1000).then(() => resolve({ id: plan.id, status: TestExecutionResultStatus.SUCCESS }));
-  });
-};
-
-export const SkipTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
-  return new Promise((resolve, _) => {
-    resolve({ id: plan.id, status: TestExecutionResultStatus.SKIPPED });
-  });
-};
 
 /**
  * Environment Controller Workflow is the parent workflow responsible for managing the number of parallel tests
@@ -171,9 +143,7 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
       .pipe(
         tap(result => results.push(result)),
         tap(result => delete handles[result.id]),
-        // End the workflow if all tests are done
         tap(() => !paused && total && total === results.length && end$.next()),
-        // Resume if the queue is ending, but there are some tests still waiting to be started
         tap(() => paused && total && total === results.length && pause$.next(false)),
         takeUntil(end$),
       )
@@ -189,13 +159,17 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
 
       if (paused === 0 && total === 0 && results.length === 0) {
         total += signal.tests.length;
-        // For the subsequent signals.
       } else {
         if (paused === 0 && signal.continue) {
           total += signal.tests.length;
         } else {
           paused += signal.tests.length;
-          pause$.next(true);
+          pause$.next(true); // This will stop the `queue`.
+          for (const key in handles) {
+            if (handles.hasOwnProperty(key)) {
+              handles[key].signal(TerminateRunTestWorkflow);
+            }
+          }
         }
       }
 
@@ -204,4 +178,26 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
       }
     });
   });
+};
+
+/**
+ * Run The Test Workflow
+ *
+ * @param {TestPlan} plan The test plan to run
+ * @returns {Promise<TestExecutionResult>} The test execution result
+ */
+export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
+  setHandler(TerminateRunTestWorkflow, async () => await TerminateTest(plan));
+  const result = await RunTest(plan);
+  return result;
+};
+
+/**
+ * Run The Test Workflow
+ *
+ * @param {TestPlan} plan The test plan to run
+ * @returns {Promise<TestExecutionResult>} The test execution result
+ */
+export const SkipTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
+  return new Promise((resolve, _) => resolve({ id: plan.id, status: TestExecutionResultStatus.SKIPPED }));
 };

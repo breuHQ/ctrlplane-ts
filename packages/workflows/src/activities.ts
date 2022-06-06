@@ -2,7 +2,51 @@ import { getContext } from '@ctrlplane/common/activities';
 import { TestPlan, TestExecutionResult, TestExecutionResultStatus } from '@ctrlplane/common/models';
 import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta, makeInformer } from '@kubernetes/client-node';
 
-const createJobSpec = (runId: string, plan: TestPlan) => {
+export const RunTest: (plan: TestPlan) => Promise<TestExecutionResult> = async plan => {
+  return new Promise((resolve, _) => {
+    const ctx = getContext();
+    const spec = _createJobSpec(ctx.info.workflowExecution.runId, plan);
+    const labelSelector = `ctrlplane.dev/plan-id=${plan.id}`;
+
+    const k8sConfig = new KubeConfig();
+    k8sConfig.loadFromDefault();
+
+    const k8sBatch = k8sConfig.makeApiClient(BatchV1Api);
+
+    const listFn = () =>
+      k8sBatch.listNamespacedJob('default', undefined, undefined, undefined, undefined, labelSelector);
+
+    const informer = makeInformer(k8sConfig, '/apis/batch/v1/namespaces/default/jobs', listFn, labelSelector);
+
+    informer.on('change', event => {
+      ctx.heartbeat();
+      if (event.status?.succeeded) {
+        informer.stop().then(() => resolve({ id: plan.id, status: TestExecutionResultStatus.SUCCESS }));
+      }
+    });
+
+    informer.on('delete', () => resolve({ id: plan.id, status: TestExecutionResultStatus.TERMINATED }));
+
+    informer.start().then(() => {
+      k8sBatch.createNamespacedJob('default', spec).catch(err =>
+        resolve({
+          id: plan.id,
+          status: TestExecutionResultStatus.FAILURE,
+          message: err.response.body.message,
+        }),
+      );
+    });
+  });
+};
+
+export const TerminateTest: (plan: TestPlan) => Promise<void> = async plan => {
+  const k8sConfig = new KubeConfig();
+  k8sConfig.loadFromDefault();
+  const k8sBatch = k8sConfig.makeApiClient(BatchV1Api);
+  await k8sBatch.deleteNamespacedJob(plan.id, 'default');
+};
+
+const _createJobSpec = (runId: string, plan: TestPlan) => {
   const name = plan.id;
   const image = 'busybox:latest';
   const restartPolicy = 'Never';
@@ -33,59 +77,4 @@ const createJobSpec = (runId: string, plan: TestPlan) => {
   } as V1JobSpec;
   job.spec = spec;
   return job;
-};
-
-export const terminateTest: (plan: TestPlan) => Promise<void> = async plan => {
-  return;
-};
-
-export const runTest: (plan: TestPlan) => Promise<TestExecutionResult> = async plan => {
-  return new Promise((resolve, _) => {
-    const ctx = getContext();
-    const spec = createJobSpec(ctx.info.workflowExecution.runId, plan);
-    const labelSelector = `ctrlplane.dev/plan-id=${plan.id}`;
-
-    const k8sConfig = new KubeConfig();
-    k8sConfig.loadFromDefault();
-
-    const k8sBatch = k8sConfig.makeApiClient(BatchV1Api);
-
-    const listFn = () =>
-      k8sBatch.listNamespacedJob('default', undefined, undefined, undefined, undefined, labelSelector);
-
-    const informer = makeInformer(k8sConfig, '/apis/batch/v1/namespaces/default/jobs', listFn, labelSelector);
-
-    informer.on('add', () => {
-      ctx.logger.info(
-        `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${plan.sleepSeconds}s] Starting ... `,
-      );
-    });
-
-    informer.on('change', event => {
-      ctx.logger.info(
-        `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${plan.sleepSeconds}s] Heartbeat ...`,
-      );
-      if (event.status?.succeeded) {
-        informer.stop().then(() => {
-          ctx.logger.info(
-            `[${ctx.info.workflowType}] [${ctx.info.workflowExecution.workflowId}] [${plan.sleepSeconds}s] Finished`,
-          );
-          resolve({
-            id: plan.id,
-            status: TestExecutionResultStatus.SUCCESS,
-          });
-        });
-      }
-    });
-
-    informer.start().then(() => {
-      k8sBatch.createNamespacedJob('default', spec).catch(err => {
-        resolve({
-          id: plan.id,
-          status: TestExecutionResultStatus.FAILURE,
-          message: err.response.body.message,
-        });
-      });
-    });
-  });
 };

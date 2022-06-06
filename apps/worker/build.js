@@ -13,15 +13,11 @@ await build({
   entryPoints: ['./src/client.ts', './src/worker.ts', './src/workflows.ts'],
   bundle: true,
   sourcemap: true,
-  // format: 'cjs',
   format: 'esm',
   platform: 'node',
   external: ['@temporalio/*', ...external],
   outdir: './build',
   treeShaking: true,
-  // minifyIdentifiers: true,
-  // minifySyntax: true,
-  // watch: true,
 });
 
 console.info('Build complete');

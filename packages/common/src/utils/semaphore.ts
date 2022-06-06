@@ -53,6 +53,10 @@ export class Semaphore {
    */
   private _upcoming: Function[];
 
+  get upcoming() {
+    return this._upcoming;
+  }
+
   /**
    * Exections in progress
    *
@@ -61,6 +65,10 @@ export class Semaphore {
    * @memberof Semaphore
    */
   private _heads: Function[];
+
+  get heads() {
+    return this._heads;
+  }
 
   private _completeFn!: Noop;
   private _completePr!: Promise<void>;

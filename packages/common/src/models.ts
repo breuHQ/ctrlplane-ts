@@ -12,6 +12,7 @@ export interface LoggerSinks extends Sinks {
 export interface TestPlan {
   id: string;
   sleepSeconds: number;
+  environmentId?: string;
 }
 
 export interface TestEnvironment {
@@ -19,4 +20,19 @@ export interface TestEnvironment {
   continue: boolean;
   maxParallism: number;
   tests: Array<TestPlan>;
+}
+
+export const enum TestExecutionResultStatus {
+  SUCCESS = 'SUCCESS',
+  FAILURE = 'FAILURE',
+  SKIPPED = 'SKIPPED',
+  TERMINATED = 'TERMINATED',
+}
+
+export type TestExectionResultStatusString = keyof typeof TestExecutionResultStatus;
+
+export interface TestExecutionResult {
+  id: string;
+  status: TestExectionResultStatusString;
+  message?: string;
 }

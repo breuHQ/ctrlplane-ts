@@ -4,14 +4,14 @@
   "private": true,
   "description": "Environment controller workflow to control maximum parallel activities.",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json --watch"
+    "build": "tsc -p tsconfig.json"
   },
   "devDependencies": {
     "typescript": "~4.6"
   },
   "dependencies": {
     "@kubernetes/client-node": "^0.16.3",
+    "rxjs": "^7.5.5",
     "temporalio": "^0.22.0",
     "winston": "^3.7.2"
   }

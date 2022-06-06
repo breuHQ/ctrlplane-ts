@@ -68,7 +68,9 @@ export const createTestEnvironments = (max: number): TestEnvironment[] => {
       return count < 1 ? 1 : count;
     }),
     continue: factory.each(() => Math.random() > 0.5),
-    tests: factory.each(() => testPlanFactory.buildList(Math.floor(Math.random() * max))),
+    // continue: true,
+    // tests: factory.each(() => testPlanFactory.buildList(Math.floor(Math.random() * max))),
+    tests: factory.each(() => testPlanFactory.buildList(max)),
   });
 
   return testEnvironmentFactory.buildList(max);

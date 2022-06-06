@@ -1,42 +1,203 @@
-import { TestEnvironment, TestPlan } from '@ctrlplane/common/models';
-import { UpdateEnvironmentControllerlWorkflowSignal } from '@ctrlplane/common/signals';
+import { TestEnvironment, TestExecutionResult, TestExecutionResultStatus, TestPlan } from '@ctrlplane/common/models';
 import { Semaphore } from '@ctrlplane/common/utils';
-import { WorkflowInboundLogInterceptor } from '@ctrlplane/common/workflows';
-import { executeChild, proxyActivities, setHandler, WorkflowInterceptorsFactory } from '@temporalio/workflow';
+import { ChildWorkflowHandle, proxyActivities, setHandler, startChild } from '@temporalio/workflow';
+import {
+  bufferToggle,
+  distinctUntilChanged,
+  filter,
+  from,
+  map,
+  merge,
+  mergeMap,
+  ReplaySubject,
+  share,
+  Subject,
+  take,
+  takeUntil,
+  tap,
+  windowToggle,
+} from 'rxjs';
 import type * as activities from './activities';
+import { TerminateRunTestWorkflow, UpdateEnvCtrlWorkflow } from './signals';
 
-const { runTest } = proxyActivities<typeof activities>({
+const { RunTest, TerminateTest } = proxyActivities<typeof activities>({
   startToCloseTimeout: '60 minutes',
 });
 
-export const TestRunnerWorkflow = async (plan: TestPlan): Promise<void> => {
-  await runTest(plan);
-  return;
-};
+interface RunTestWorkflowHandles {
+  [key: string]: ChildWorkflowHandle<typeof RunTestWorkflow>;
+}
 
 /**
  * Environment Controller Workflow is the parent workflow responsible for managing the number of parallel tests
- * executions for a given customer. The workflow is meant only to be started with `signalWithStart`.
+ * executions for a given customer.
+ *
+ * NOTE: The workflow is meant only to be started with `signalWithStart`.
  *
  * @param {TestEnvironment} environment The environment to create
  * @return {Promise<void>}
  */
-export const EnvrionmentControllerWorkflow = async (environment: TestEnvironment): Promise<void> => {
-  const results: Array<Promise<void>> = [];
-  const semaphore = new Semaphore(environment.maxParallism);
+export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<TestExecutionResult[]> => {
+  return new Promise((resolve, _) => {
+    /**
+     * Semaphore to control the number of parallel tests
+     */
+    const semaphore = new Semaphore(environment.maxParallism);
 
-  setHandler(UpdateEnvironmentControllerlWorkflowSignal, async signal => {
-    semaphore.resize(signal.maxParallism);
-    for (const plan of signal.tests) {
-      const workflowId = `plan-${plan.id}`;
-      results.push(semaphore.fire(() => executeChild(TestRunnerWorkflow, { workflowId, args: [plan] })));
-    }
+    /**
+     * Workflow handler to signal termination
+     */
+    const handles: RunTestWorkflowHandles = {};
+
+    /**
+     * Test result accumulator
+     */
+    const results: TestExecutionResult[] = [];
+
+    /**
+     * The total number of tests to run
+     */
+    let total = 0;
+    let paused = 0;
+
+    /**
+     * Main Exection Queue
+     */
+    const queue$ = new ReplaySubject<TestPlan>();
+
+    /**
+     * Waiting Queue. By default, all tests are pushed to this queue.
+     */
+    const waiting$ = new ReplaySubject<TestPlan>();
+
+    /**
+     * Stream of results
+     */
+    const result$ = new ReplaySubject<TestExecutionResult>();
+
+    /**
+     * Signal to end the workflow
+     */
+    const end$ = new ReplaySubject<void>();
+
+    /**
+     * Signals for pause and resume.
+     */
+    const pause$ = new Subject<boolean>();
+
+    const _pause$ = pause$.pipe(distinctUntilChanged(), share());
+    const _on$ = _pause$.pipe(
+      filter(v => !v),
+      tap(() => (total += paused)),
+      tap(() => (paused = 0)),
+    );
+    const _off$ = _pause$.pipe(filter(v => !!v));
+
+    /**
+     * Utility Functions
+     */
+
+    const _skipTest = (plan: TestPlan) =>
+      from(startChild(SkipTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
+        tap(handle => (handles[plan.id] = handle)),
+      );
+
+    const _runTest = (plan: TestPlan) =>
+      from(startChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
+        tap(handle => (handles[plan.id] = handle)),
+      );
+
+    /**
+     * Workflow Execution Logic
+     */
+
+    // Initiating the pause and resume logic
+    merge(
+      waiting$.pipe(
+        bufferToggle(_off$, () => _on$),
+        mergeMap(x => x),
+      ),
+      waiting$.pipe(
+        windowToggle(_on$, () => _off$),
+        mergeMap(x => x),
+      ),
+    )
+      .pipe(tap(plan => queue$.next(plan)))
+      .subscribe();
+
+    pause$.next(true);
+    pause$.next(false);
+
+    queue$
+      .pipe(
+        mergeMap(plan => semaphore.acquire().pipe(map(() => plan))),
+        mergeMap(plan => (paused ? _skipTest(plan) : _runTest(plan))),
+        mergeMap(handle => from(handle.result())),
+        tap(result => result$.next(result)),
+        tap(() => semaphore.release()),
+        takeUntil(end$),
+      )
+      .subscribe();
+
+    result$
+      .pipe(
+        tap(result => results.push(result)),
+        tap(result => delete handles[result.id]),
+        tap(() => !paused && total && total === results.length && end$.next()),
+        tap(() => paused && total && total === results.length && pause$.next(false)),
+        takeUntil(end$),
+      )
+      .subscribe();
+
+    end$.pipe(take(1)).subscribe(() => resolve(results));
+
+    /**
+     * NOTE: This workflow is only meant to be started with `signalWithStart`.
+     */
+    setHandler(UpdateEnvCtrlWorkflow, async signal => {
+      semaphore.resize(signal.maxParallism);
+
+      if (paused === 0 && total === 0 && results.length === 0) {
+        total += signal.tests.length;
+      } else {
+        if (paused === 0 && signal.continue) {
+          total += signal.tests.length;
+        } else {
+          paused += signal.tests.length;
+          pause$.next(true); // This will stop the `queue`.
+          for (const key in handles) {
+            if (handles.hasOwnProperty(key)) {
+              handles[key].signal(TerminateRunTestWorkflow);
+            }
+          }
+        }
+      }
+
+      for (const plan of signal.tests) {
+        waiting$.next(plan);
+      }
+    });
   });
-
-  await semaphore.awaitTerminate();
-  return;
 };
 
-export const interceptors: WorkflowInterceptorsFactory = () => ({
-  inbound: [new WorkflowInboundLogInterceptor()],
-});
+/**
+ * Run The Test Workflow
+ *
+ * @param {TestPlan} plan The test plan to run
+ * @returns {Promise<TestExecutionResult>} The test execution result
+ */
+export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
+  setHandler(TerminateRunTestWorkflow, async () => await TerminateTest(plan));
+  const result = await RunTest(plan);
+  return result;
+};
+
+/**
+ * Run The Test Workflow
+ *
+ * @param {TestPlan} plan The test plan to run
+ * @returns {Promise<TestExecutionResult>} The test execution result
+ */
+export const SkipTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
+  return new Promise((resolve, _) => resolve({ id: plan.id, status: TestExecutionResultStatus.SKIPPED }));
+};

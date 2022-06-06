@@ -1,8 +1,8 @@
-import { EnvrionmentControllerWorkflow } from '@ctrlplane/workflows/workflows';
 import { QUEUE_ENV_CTRL } from '@ctrlplane/common/names';
+import { UpdateEnvCtrlWorkflow } from '@ctrlplane/workflows/signals';
+import { EnvCtrlWorkflow } from '@ctrlplane/workflows/workflows';
 import { Connection, WorkflowClient } from '@temporalio/client';
 import { createTestEnvironments } from './generate';
-import { UpdateEnvironmentControllerlWorkflowSignal } from '@ctrlplane/common/signals';
 
 const run = async () => {
   const connection = new Connection({});
@@ -12,13 +12,13 @@ const run = async () => {
     taskQueue: QUEUE_ENV_CTRL,
   };
 
-  const testEnvironments = createTestEnvironments(25);
+  const testEnvironments = createTestEnvironments(10);
 
   for (const env of testEnvironments) {
-    await client.signalWithStart(EnvrionmentControllerWorkflow, {
+    await client.signalWithStart(EnvCtrlWorkflow, {
       workflowId: `env-${env.id}`,
       args: [env],
-      signal: UpdateEnvironmentControllerlWorkflowSignal,
+      signal: UpdateEnvCtrlWorkflow,
       signalArgs: [env],
       ...options,
     });

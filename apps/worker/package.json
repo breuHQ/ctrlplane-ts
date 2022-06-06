@@ -7,7 +7,7 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run build\" \"nodemon ./build/worker.js\" \"nodemon ./build/client.js\"",
+    "dev": "nodemon ./build/worker.js",
     "clean": "rimraf coverage build tmp",
     "prebuild": "npm run lint",
     "build": "node ./build.js",

@@ -12,9 +12,11 @@ const run = async () => {
     taskQueue: QUEUE_ENV_CTRL,
   };
 
-  const testEnvironments = createTestEnvironments(10);
+  const environments = createTestEnvironments(10);
 
-  for (const env of testEnvironments) {
+  console.log(JSON.stringify(environments, null, 2));
+
+  for (const env of environments) {
     await client.signalWithStart(EnvCtrlWorkflow, {
       workflowId: `env-${env.id}`,
       args: [env],

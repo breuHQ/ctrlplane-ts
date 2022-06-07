@@ -18,9 +18,9 @@ import {
   windowToggle,
 } from 'rxjs';
 import type * as activities from './activities';
-import { TerminateRunTestWorkflow, UpdateEnvCtrlWorkflow } from './signals';
+import { UpdateEnvCtrlWorkflow } from './signals';
 
-const { RunTest, TerminateTest } = proxyActivities<typeof activities>({
+const { RunTest, TerminateEnvironmentTests } = proxyActivities<typeof activities>({
   startToCloseTimeout: '60 minutes',
 });
 
@@ -59,6 +59,7 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
      */
     let total = 0;
     let paused = 0;
+    let terminationCounter = 0;
 
     /**
      * Main Exection Queue
@@ -165,11 +166,11 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
         } else {
           paused += signal.tests.length;
           pause$.next(true); // This will stop the `queue`.
-          for (const key in handles) {
-            if (handles.hasOwnProperty(key)) {
-              handles[key].signal(TerminateRunTestWorkflow);
-            }
-          }
+          startChild(TermiateEnvironmentTestsWorkflow, {
+            workflowId: `${environment.id}-${terminationCounter}`,
+            args: [environment],
+          });
+          terminationCounter++;
         }
       }
 
@@ -187,17 +188,20 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
  * @returns {Promise<TestExecutionResult>} The test execution result
  */
 export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
-  setHandler(TerminateRunTestWorkflow, async () => await TerminateTest(plan));
   const result = await RunTest(plan);
   return result;
 };
 
 /**
- * Run The Test Workflow
+ * Skip Running the tests. We just update the status of the test to `skipped`.
  *
  * @param {TestPlan} plan The test plan to run
  * @returns {Promise<TestExecutionResult>} The test execution result
  */
 export const SkipTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
   return new Promise((resolve, _) => resolve({ id: plan.id, status: TestExecutionResultStatus.SKIPPED }));
+};
+
+export const TermiateEnvironmentTestsWorkflow: (environment: TestEnvironment) => Promise<void> = async environment => {
+  return TerminateEnvironmentTests(environment);
 };

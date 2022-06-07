@@ -1,5 +1,5 @@
 import { getContext } from '@ctrlplane/common/activities';
-import { TestPlan, TestExecutionResult, TestExecutionResultStatus } from '@ctrlplane/common/models';
+import { TestPlan, TestExecutionResult, TestExecutionResultStatus, TestEnvironment } from '@ctrlplane/common/models';
 import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta, makeInformer } from '@kubernetes/client-node';
 
 export const RunTest: (plan: TestPlan) => Promise<TestExecutionResult> = async plan => {
@@ -39,11 +39,20 @@ export const RunTest: (plan: TestPlan) => Promise<TestExecutionResult> = async p
   });
 };
 
-export const TerminateTest: (plan: TestPlan) => Promise<void> = async plan => {
+export const TerminateEnvironmentTests: (environment: TestEnvironment) => Promise<void> = async environment => {
   const k8sConfig = new KubeConfig();
   k8sConfig.loadFromDefault();
   const k8sBatch = k8sConfig.makeApiClient(BatchV1Api);
-  await k8sBatch.deleteNamespacedJob(plan.id, 'default');
+  await k8sBatch.deleteCollectionNamespacedJob(
+    'default',
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    `ctrlplane.dev/environment-id=${environment.id}`,
+  );
+  return;
 };
 
 const _createJobSpec = (runId: string, plan: TestPlan) => {
@@ -54,6 +63,7 @@ const _createJobSpec = (runId: string, plan: TestPlan) => {
   const metadata = new V1ObjectMeta();
   metadata.name = name;
   metadata.labels = {
+    'ctrlplane.dev/environment-id': plan.environmentId,
     'ctrlplane.dev/plan-id': plan.id,
     'ctrlplane.dev/run-id': runId,
   };

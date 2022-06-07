@@ -2,7 +2,13 @@ import { getContext } from '@ctrlplane/common/activities';
 import { TestPlan, TestExecutionResult, TestExecutionResultStatus, TestEnvironment } from '@ctrlplane/common/models';
 import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta, makeInformer } from '@kubernetes/client-node';
 
-export const RunTest: (plan: TestPlan) => Promise<TestExecutionResult> = async plan => {
+/**
+ * Create a Kubernetes Job for a given test plan
+ *
+ * @param {TestPlan} plan The plan to create the job for.
+ * @returns {Promise<TestExecutionResult>} The test execution result.
+ */
+export const RunTest = async (plan: TestPlan): Promise<TestExecutionResult> => {
   return new Promise((resolve, _) => {
     const ctx = getContext();
     const spec = _createJobSpec(ctx.info.workflowExecution.runId, plan);
@@ -39,7 +45,12 @@ export const RunTest: (plan: TestPlan) => Promise<TestExecutionResult> = async p
   });
 };
 
-export const TerminateEnvironmentTests: (environment: TestEnvironment) => Promise<void> = async environment => {
+/**
+ *
+ * @param {TestEnvironment} environment The environment to terminate
+ * @returns {Promise<void>}
+ */
+export const TerminateEnvironmentTests = async (environment: TestEnvironment): Promise<void> => {
   const k8sConfig = new KubeConfig();
   k8sConfig.loadFromDefault();
   const k8sBatch = k8sConfig.makeApiClient(BatchV1Api);
@@ -55,7 +66,14 @@ export const TerminateEnvironmentTests: (environment: TestEnvironment) => Promis
   return;
 };
 
-const _createJobSpec = (runId: string, plan: TestPlan) => {
+/**
+ * Create the job spec for the given test plan
+ *
+ * @param {string} runId The run ID of the workflow
+ * @param {TestPlan} plan The test plan to create the job for.
+ * @returns {V1Job}
+ */
+const _createJobSpec = (runId: string, plan: TestPlan): V1Job => {
   const name = plan.id;
   const image = 'busybox:latest';
   const restartPolicy = 'Never';

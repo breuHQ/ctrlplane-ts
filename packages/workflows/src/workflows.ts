@@ -1,6 +1,6 @@
 import { TestEnvironment, TestExecutionResult, TestExecutionResultStatus, TestPlan } from '@ctrlplane/common/models';
 import { Semaphore } from '@ctrlplane/common/utils';
-import { ChildWorkflowHandle, proxyActivities, setHandler, startChild } from '@temporalio/workflow';
+import { executeChild, proxyActivities, setHandler, startChild } from '@temporalio/workflow';
 import {
   bufferToggle,
   distinctUntilChanged,
@@ -24,10 +24,6 @@ const { RunTest, TerminateEnvironmentTests } = proxyActivities<typeof activities
   startToCloseTimeout: '60 minutes',
 });
 
-interface RunTestWorkflowHandles {
-  [key: string]: ChildWorkflowHandle<typeof RunTestWorkflow>;
-}
-
 /**
  * Environment Controller Workflow is the parent workflow responsible for managing the number of parallel tests
  * executions for a given customer.
@@ -43,11 +39,6 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
      * Semaphore to control the number of parallel tests
      */
     const semaphore = new Semaphore(environment.maxParallism);
-
-    /**
-     * Workflow handler to signal termination
-     */
-    const handles: RunTestWorkflowHandles = {};
 
     /**
      * Test result accumulator
@@ -99,14 +90,10 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
      */
 
     const _skipTest = (plan: TestPlan) =>
-      from(startChild(SkipTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
-        tap(handle => (handles[plan.id] = handle)),
-      );
+      from(executeChild(SkipTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] }));
 
     const _runTest = (plan: TestPlan) =>
-      from(startChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
-        tap(handle => (handles[plan.id] = handle)),
-      );
+      from(executeChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] }));
 
     /**
      * Workflow Execution Logic
@@ -133,7 +120,6 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
       .pipe(
         mergeMap(plan => semaphore.acquire().pipe(map(() => plan))),
         mergeMap(plan => (paused ? _skipTest(plan) : _runTest(plan))),
-        mergeMap(handle => from(handle.result())),
         tap(result => result$.next(result)),
         tap(() => semaphore.release()),
         takeUntil(end$),
@@ -143,7 +129,6 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
     result$
       .pipe(
         tap(result => results.push(result)),
-        tap(result => delete handles[result.id]),
         tap(() => !paused && total && total === results.length && end$.next()),
         tap(() => paused && total && total === results.length && pause$.next(false)),
         takeUntil(end$),
@@ -167,7 +152,7 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
           paused += signal.tests.length;
           pause$.next(true); // This will stop the `queue`.
           startChild(TermiateEnvironmentTestsWorkflow, {
-            workflowId: `${environment.id}-${terminationCounter}`,
+            workflowId: `${environment.id}-${terminationCounter}`, // TODO: We need to comeup with a better way to generate ID
             args: [environment],
           });
           terminationCounter++;

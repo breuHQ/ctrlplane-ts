@@ -1,6 +1,6 @@
 import { TestEnvironment, TestExecutionResult, TestExecutionResultStatus, TestPlan } from '@ctrlplane/common/models';
 import { Semaphore } from '@ctrlplane/common/utils';
-import { ChildWorkflowHandle, proxyActivities, setHandler, startChild } from '@temporalio/workflow';
+import { executeChild, proxyActivities, setHandler, startChild } from '@temporalio/workflow';
 import {
   bufferToggle,
   distinctUntilChanged,
@@ -18,15 +18,11 @@ import {
   windowToggle,
 } from 'rxjs';
 import type * as activities from './activities';
-import { TerminateRunTestWorkflow, UpdateEnvCtrlWorkflow } from './signals';
+import { UpdateEnvCtrlWorkflow } from './signals';
 
-const { RunTest, TerminateTest } = proxyActivities<typeof activities>({
+const { RunTest, TerminateEnvironmentTests } = proxyActivities<typeof activities>({
   startToCloseTimeout: '60 minutes',
 });
-
-interface RunTestWorkflowHandles {
-  [key: string]: ChildWorkflowHandle<typeof RunTestWorkflow>;
-}
 
 /**
  * Environment Controller Workflow is the parent workflow responsible for managing the number of parallel tests
@@ -45,11 +41,6 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
     const semaphore = new Semaphore(environment.maxParallism);
 
     /**
-     * Workflow handler to signal termination
-     */
-    const handles: RunTestWorkflowHandles = {};
-
-    /**
      * Test result accumulator
      */
     const results: TestExecutionResult[] = [];
@@ -59,6 +50,7 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
      */
     let total = 0;
     let paused = 0;
+    let terminationCounter = 0;
 
     /**
      * Main Exection Queue
@@ -98,14 +90,10 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
      */
 
     const _skipTest = (plan: TestPlan) =>
-      from(startChild(SkipTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
-        tap(handle => (handles[plan.id] = handle)),
-      );
+      from(executeChild(SkipTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] }));
 
     const _runTest = (plan: TestPlan) =>
-      from(startChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] })).pipe(
-        tap(handle => (handles[plan.id] = handle)),
-      );
+      from(executeChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] }));
 
     /**
      * Workflow Execution Logic
@@ -132,7 +120,6 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
       .pipe(
         mergeMap(plan => semaphore.acquire().pipe(map(() => plan))),
         mergeMap(plan => (paused ? _skipTest(plan) : _runTest(plan))),
-        mergeMap(handle => from(handle.result())),
         tap(result => result$.next(result)),
         tap(() => semaphore.release()),
         takeUntil(end$),
@@ -142,7 +129,6 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
     result$
       .pipe(
         tap(result => results.push(result)),
-        tap(result => delete handles[result.id]),
         tap(() => !paused && total && total === results.length && end$.next()),
         tap(() => paused && total && total === results.length && pause$.next(false)),
         takeUntil(end$),
@@ -165,11 +151,11 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
         } else {
           paused += signal.tests.length;
           pause$.next(true); // This will stop the `queue`.
-          for (const key in handles) {
-            if (handles.hasOwnProperty(key)) {
-              handles[key].signal(TerminateRunTestWorkflow);
-            }
-          }
+          startChild(TermiateEnvironmentTestsWorkflow, {
+            workflowId: `${environment.id}-${terminationCounter}`, // TODO: We need to comeup with a better way to generate ID
+            args: [environment],
+          });
+          terminationCounter++;
         }
       }
 
@@ -187,17 +173,20 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
  * @returns {Promise<TestExecutionResult>} The test execution result
  */
 export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
-  setHandler(TerminateRunTestWorkflow, async () => await TerminateTest(plan));
   const result = await RunTest(plan);
   return result;
 };
 
 /**
- * Run The Test Workflow
+ * Skip Running the tests. We just update the status of the test to `skipped`.
  *
  * @param {TestPlan} plan The test plan to run
  * @returns {Promise<TestExecutionResult>} The test execution result
  */
 export const SkipTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
   return new Promise((resolve, _) => resolve({ id: plan.id, status: TestExecutionResultStatus.SKIPPED }));
+};
+
+export const TermiateEnvironmentTestsWorkflow: (environment: TestEnvironment) => Promise<void> = async environment => {
+  return TerminateEnvironmentTests(environment);
 };

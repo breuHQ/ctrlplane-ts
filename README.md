@@ -23,6 +23,12 @@ In order to signal the workflow, run the following command in a seperate window
 node ./apps/worker/build/client.js
 ```
 
+### FAQ
+
+> Why are we moving away from accepted naming convention for javascript community for naming function and starting them with capital letter instead of small?
+
+Because, we want to be language agnostic, and in go eco system, to indicate an exported function or constant, it is denoted by a capital letter.
+
 ### TODO
 
 - fix the watch script.

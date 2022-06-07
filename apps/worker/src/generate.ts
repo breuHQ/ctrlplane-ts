@@ -32,21 +32,11 @@ const nanoid = customAlphabet(alphabet, 21);
  * @returns {TestEnvironment[]} The generated environments
  */
 export const createTestEnvironments = (max: number): TestEnvironment[] => {
-  // const generateIdPool = (count: number) => {
-  //   const ids = [];
-  //   for (let i = 0; i < count / 2; i++) {
-  //     ids.push(nanoid());
-  //   }
-  //   return ids;
-  // };
-
-  // const pool = generateIdPool(count);
-
   const pool = [
     'BhCoT7m0xL3SnI1iKrNUW',
     'EreT7CaPN0mVdIll1oXaF',
     'g7OKuKSRMez2Gk30c0lzz',
-    'gFeJ-D7pMymFIhQdZMjP5',
+    'gFeJxD7pMymFIhQdZMjP5',
     'Jyp4k5nH13MsPzTtmpyzi',
     'L5yyyTBrWQCC99KleRt7j',
   ];
@@ -59,6 +49,7 @@ export const createTestEnvironments = (max: number): TestEnvironment[] => {
       const count = Math.floor(Math.random() * max);
       return count < 1 ? 1 : count;
     }),
+    environmentId: 'empty',
   });
 
   const testEnvironmentFactory = factory.Sync.makeFactory<TestEnvironment>({
@@ -69,9 +60,11 @@ export const createTestEnvironments = (max: number): TestEnvironment[] => {
     }),
     continue: factory.each(() => Math.random() > 0.5),
     // continue: true,
-    // tests: factory.each(() => testPlanFactory.buildList(Math.floor(Math.random() * max))),
-    tests: factory.each(() => testPlanFactory.buildList(max)),
+    tests: factory.each(() => testPlanFactory.buildList(Math.floor(Math.random() * max) || 1)),
+    // tests: factory.each(() => testPlanFactory.buildList(max)),
   });
 
-  return testEnvironmentFactory.buildList(max);
+  const environments = testEnvironmentFactory.buildList(max);
+  environments.forEach(env => env.tests.map(test => (test['environmentId'] = env.id)));
+  return environments;
 };

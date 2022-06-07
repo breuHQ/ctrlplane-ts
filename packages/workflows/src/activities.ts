@@ -1,8 +1,14 @@
 import { getContext } from '@ctrlplane/common/activities';
-import { TestPlan, TestExecutionResult, TestExecutionResultStatus } from '@ctrlplane/common/models';
+import { TestPlan, TestExecutionResult, TestExecutionResultStatus, TestEnvironment } from '@ctrlplane/common/models';
 import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta, makeInformer } from '@kubernetes/client-node';
 
-export const RunTest: (plan: TestPlan) => Promise<TestExecutionResult> = async plan => {
+/**
+ * Create a Kubernetes Job for a given test plan
+ *
+ * @param {TestPlan} plan The plan to create the job for.
+ * @returns {Promise<TestExecutionResult>} The test execution result.
+ */
+export const RunTest = async (plan: TestPlan): Promise<TestExecutionResult> => {
   return new Promise((resolve, _) => {
     const ctx = getContext();
     const spec = _createJobSpec(ctx.info.workflowExecution.runId, plan);
@@ -39,14 +45,35 @@ export const RunTest: (plan: TestPlan) => Promise<TestExecutionResult> = async p
   });
 };
 
-export const TerminateTest: (plan: TestPlan) => Promise<void> = async plan => {
+/**
+ *
+ * @param {TestEnvironment} environment The environment to terminate
+ * @returns {Promise<void>}
+ */
+export const TerminateEnvironmentTests = async (environment: TestEnvironment): Promise<void> => {
   const k8sConfig = new KubeConfig();
   k8sConfig.loadFromDefault();
   const k8sBatch = k8sConfig.makeApiClient(BatchV1Api);
-  await k8sBatch.deleteNamespacedJob(plan.id, 'default');
+  await k8sBatch.deleteCollectionNamespacedJob(
+    'default',
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    `ctrlplane.dev/environment-id=${environment.id}`,
+  );
+  return;
 };
 
-const _createJobSpec = (runId: string, plan: TestPlan) => {
+/**
+ * Create the job spec for the given test plan
+ *
+ * @param {string} runId The run ID of the workflow
+ * @param {TestPlan} plan The test plan to create the job for.
+ * @returns {V1Job}
+ */
+const _createJobSpec = (runId: string, plan: TestPlan): V1Job => {
   const name = plan.id;
   const image = 'busybox:latest';
   const restartPolicy = 'Never';
@@ -54,6 +81,7 @@ const _createJobSpec = (runId: string, plan: TestPlan) => {
   const metadata = new V1ObjectMeta();
   metadata.name = name;
   metadata.labels = {
+    'ctrlplane.dev/environment-id': plan.environmentId,
     'ctrlplane.dev/plan-id': plan.id,
     'ctrlplane.dev/run-id': runId,
   };

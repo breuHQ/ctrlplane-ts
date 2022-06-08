@@ -1,5 +1,6 @@
 import { Semaphore } from './semaphore';
-import { sleep } from '@temporalio/workflow';
+import { from, mergeMap, switchMap, tap } from 'rxjs';
+import { sleep } from './extras';
 
 describe('Semaphore', () => {
   let semaphore: Semaphore;
@@ -17,21 +18,29 @@ describe('Semaphore', () => {
   });
 
   test('has 5 available slots', () => {
-    expect(semaphore.available).toBe(5);
+    expect(semaphore.counter).toBe(5);
   });
 
-  test('resizing semaphore to 6', () => {
+  test('resizing the semaphore works', () => {
     semaphore.resize(6);
     expect(semaphore.max).toBe(6);
-    expect(semaphore.available).toBe(6);
+    expect(semaphore.counter).toBe(6);
   });
 
-  test('it should acquire and hold the lock during execution, and then release it', () => {
-    const result = semaphore.fire(() => sleep(5000));
-    expect(semaphore.max).toBe(6);
-    expect(semaphore.available).toBe(5);
-    result.then(() => {
-      expect(semaphore.available).toBe(6);
-    });
+  test('it should acquire and hold the lock during execution and then release it', () => {
+    const val = from([5000]);
+    val
+      .pipe(
+        tap(() => expect(semaphore.max).toBe(6)),
+        switchMap(val =>
+          semaphore.acquire().pipe(
+            tap(() => expect(semaphore.counter).toBe(5)),
+            mergeMap(() => from(sleep(val))),
+            tap(() => semaphore.release()),
+            tap(() => expect(semaphore.counter).toBe(6)),
+          ),
+        ),
+      )
+      .subscribe();
   });
 });

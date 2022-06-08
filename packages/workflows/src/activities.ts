@@ -1,6 +1,7 @@
 import { getContext } from '@ctrlplane/common/activities';
 import { TestPlan, TestExecutionResult, TestExecutionResultStatus, TestEnvironment } from '@ctrlplane/common/models';
 import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta, makeInformer } from '@kubernetes/client-node';
+import { fromEvent, tap } from 'rxjs';
 
 /**
  * Create a Kubernetes Job for a given test plan
@@ -24,14 +25,28 @@ export const RunTest = async (plan: TestPlan): Promise<TestExecutionResult> => {
 
     const informer = makeInformer(k8sConfig, '/apis/batch/v1/namespaces/default/jobs', listFn, labelSelector);
 
-    informer.on('change', event => {
-      ctx.heartbeat();
-      if (event.status?.succeeded) {
-        informer.stop().then(() => resolve({ id: plan.id, status: TestExecutionResultStatus.SUCCESS }));
-      }
-    });
+    fromEvent(informer, 'add')
+      .pipe(tap(() => ctx.heartbeat()))
+      .subscribe();
 
-    informer.on('delete', () => resolve({ id: plan.id, status: TestExecutionResultStatus.TERMINATED }));
+    fromEvent(informer, 'change')
+      .pipe(
+        tap(() => ctx.heartbeat()),
+        tap(
+          event =>
+            event.status?.succeeded &&
+            informer.stop().then(() => resolve({ id: plan.id, status: TestExecutionResultStatus.SUCCESS })),
+        ),
+      )
+      .subscribe();
+
+    fromEvent(informer, 'error')
+      .pipe(tap(() => resolve({ id: plan.id, status: TestExecutionResultStatus.FAILURE })))
+      .subscribe();
+
+    fromEvent(informer, 'delete')
+      .pipe(tap(() => resolve({ id: plan.id, status: TestExecutionResultStatus.TERMINATED })))
+      .subscribe();
 
     informer.start().then(() => {
       k8sBatch.createNamespacedJob('default', spec).catch(err =>

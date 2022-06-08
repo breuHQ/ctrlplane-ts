@@ -1,5 +1,5 @@
 import { TestEnvironment, TestExecutionResult, TestExecutionResultStatus, TestPlan } from '@ctrlplane/common/models';
-import { Semaphore } from '@ctrlplane/common/utils';
+import { Semaphore } from '@ctrlplane/common/utils/semaphore';
 import { executeChild, proxyActivities, setHandler, startChild } from '@temporalio/workflow';
 import {
   bufferToggle,

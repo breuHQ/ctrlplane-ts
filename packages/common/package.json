@@ -16,6 +16,9 @@
     "ts-node": "^10.8.0",
     "typescript": "~4.6"
   },
+  "exports": {
+    "./*": "./src/*"
+  },
   "author": "Yousuf Jawwad <ysf@breu.io>",
   "license": "Unlicesed"
 }

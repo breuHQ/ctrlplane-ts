@@ -14,8 +14,6 @@ const run = async () => {
 
   const environments = createTestEnvironments(10);
 
-  console.log(JSON.stringify(environments, null, 2));
-
   for (const env of environments) {
     await client.signalWithStart(EnvCtrlWorkflow, {
       workflowId: `env-${env.id}`,

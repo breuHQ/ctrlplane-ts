@@ -6,7 +6,8 @@
   "description": "Environment controller workflow to control maximum parallel activities.",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --experimental-vm-modules ../../node_modules/.bin/jest"
+    "test": "node --experimental-vm-modules ../../node_modules/.bin/jest",
+    "lint": "eslint . --ext .ts"
   },
   "devDependencies": {
     "@types/jest": "^27.5.1",

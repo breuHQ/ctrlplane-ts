@@ -41,7 +41,6 @@ export class ActivityInboundLogInterceptor implements ActivityInboundCallsInterc
       const durationNanos = process.hrtime.bigint() - startTime;
       const durationMs = Number(durationNanos / 1_000_000n);
       if (error) {
-        // this.logger.error('Failed', { error, durationMs });
         this.logger.error(
           `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${this.info.activityId}] Error ${durationMs}ms ${error}`,
         );

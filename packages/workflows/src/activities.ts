@@ -1,7 +1,6 @@
 import { getContext } from '@ctrlplane/common/activities';
-import { TestPlan, TestExecutionResult, TestExecutionResultStatus, TestEnvironment } from '@ctrlplane/common/models';
-import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta, makeInformer } from '@kubernetes/client-node';
-import { fromEvent, tap } from 'rxjs';
+import { TestEnvironment, TestExecutionResult, TestExecutionResultStatus, TestPlan } from '@ctrlplane/common/models';
+import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta } from '@kubernetes/client-node';
 
 /**
  * Create a Kubernetes Job for a given test plan
@@ -13,50 +12,19 @@ export const RunTest = async (plan: TestPlan): Promise<TestExecutionResult> => {
   return new Promise(resolve => {
     const ctx = getContext();
     const spec = createJobSpec(plan, ctx.info.workflowExecution.runId, ctx.info.activityId);
-    const labelSelector = `temporal.ctrlplane.dev/plan-id=${plan.id}`;
 
     const k8sConfig = new KubeConfig();
     k8sConfig.loadFromDefault();
 
     const k8sBatch = k8sConfig.makeApiClient(BatchV1Api);
 
-    const listFn = () =>
-      k8sBatch.listNamespacedJob('ctrlplane', undefined, undefined, undefined, undefined, labelSelector);
-
-    const informer = makeInformer(k8sConfig, '/apis/batch/v1/namespaces/default/jobs', listFn, labelSelector);
-
-    fromEvent(informer, 'add')
-      .pipe(tap(() => ctx.heartbeat()))
-      .subscribe();
-
-    fromEvent(informer, 'change')
-      .pipe(
-        tap(() => ctx.heartbeat()),
-        tap(
-          event =>
-            event.status?.succeeded &&
-            informer.stop().then(() => resolve({ id: plan.id, status: TestExecutionResultStatus.SUCCESS })),
-        ),
-      )
-      .subscribe();
-
-    fromEvent(informer, 'error')
-      .pipe(tap(() => resolve({ id: plan.id, status: TestExecutionResultStatus.FAILURE })))
-      .subscribe();
-
-    fromEvent(informer, 'delete')
-      .pipe(tap(() => resolve({ id: plan.id, status: TestExecutionResultStatus.TERMINATED })))
-      .subscribe();
-
-    informer.start().then(() => {
-      k8sBatch.createNamespacedJob('ctrlplane', spec).catch(err =>
-        resolve({
-          id: plan.id,
-          status: TestExecutionResultStatus.FAILURE,
-          message: err.response.body.message,
-        }),
-      );
-    });
+    k8sBatch.createNamespacedJob('ctrlplane', spec).catch(err =>
+      resolve({
+        id: plan.id,
+        status: TestExecutionResultStatus.FAILURE,
+        message: err.response.body.message,
+      }),
+    );
   });
 };
 
@@ -76,7 +44,7 @@ export const TerminateEnvironmentTests = async (environment: TestEnvironment): P
     undefined,
     undefined,
     undefined,
-    `temporal.ctrlplane.dev/environment-id=${environment.id}`,
+    `ctrlplane.dev/environment-id=${environment.id}`,
   );
   return;
 };
@@ -96,6 +64,7 @@ const createJobSpec = (plan: TestPlan, runId: string, activityId: string): V1Job
 
   const metadata = new V1ObjectMeta();
   metadata.name = name;
+  metadata.namespace = 'ctrlplane';
   metadata.labels = {
     'ctrlplane.dev/activity-id': activityId,
     'ctrlplane.dev/workflow-id': plan.environmentId,

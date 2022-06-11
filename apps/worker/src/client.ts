@@ -16,7 +16,7 @@ const run = async () => {
 
   for (const env of environments) {
     await client.signalWithStart(EnvCtrlWorkflow, {
-      workflowId: `env-${env.id}`,
+      workflowId: `${env.id}`,
       args: [env],
       signal: UpdateEnvCtrlWorkflow,
       signalArgs: [env],

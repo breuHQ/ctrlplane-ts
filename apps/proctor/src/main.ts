@@ -7,8 +7,8 @@ const parseTestPlanLabels = (job: V1Job) => {
   const labels = job.metadata?.labels || {};
   const activityId = labels['ctrlplane.dev/activity-id'];
   const planId = labels['ctrlplane.dev/plan-id'];
-  const workflowId = labels['ctrlplane.dev/workflow-id'];
-  return { activityId, planId, workflowId };
+  const environmentId = labels['ctrlplane.dev/environment-id'];
+  return { activityId, planId, environmentId };
 };
 
 const main = async () => {
@@ -52,15 +52,16 @@ main().catch(err => console.error(err));
  * @return {*}  {Promise<void>}
  */
 async function successOrHeartbeatTestPlan(job: V1Job, client: AsyncCompletionClient): Promise<void> {
-  const { activityId, planId, workflowId } = parseTestPlanLabels(job);
+  const { activityId, planId, environmentId } = parseTestPlanLabels(job);
+  const workflowId = `${planId}`;
   try {
-    job.status?.succeeded && activityId && workflowId && planId
+    job.status?.succeeded && activityId && environmentId && planId
       ? await client.complete({ workflowId, activityId }, { id: planId, status: TestExecutionResultStatus.SUCCESS })
       : await client.heartbeat({ workflowId, activityId });
   } catch (e) {
     if (e instanceof ActivityNotFoundError) {
       console.warn(
-        `[WARN]: [${workflowId}] [${planId}] [✔] Activity [${activityId}] not found, assuming it was terminated`,
+        `[WARN]: [${environmentId}] [${planId}] [✔] Activity [${activityId}] not found, assuming it was terminated`,
       );
     } else {
       console.error(e);
@@ -69,41 +70,43 @@ async function successOrHeartbeatTestPlan(job: V1Job, client: AsyncCompletionCli
 }
 
 async function failTestPlan(job: V1Job, client: AsyncCompletionClient): Promise<void> {
-  const { activityId, planId, workflowId } = parseTestPlanLabels(job);
+  const { activityId, planId, environmentId } = parseTestPlanLabels(job);
+  const workflowId = `${planId}`;
   try {
     await client.complete({ workflowId, activityId }, { id: planId, status: TestExecutionResultStatus.FAILURE });
   } catch (error) {
     if (error instanceof ActivityNotFoundError) {
       console.warn(
-        `[WARN]: [${workflowId}] [${planId}] [✘] Activity [${activityId}] not found, assuming it was terminated`,
+        `[WARN]: [${environmentId}] [${planId}] [✘] Activity [${activityId}] not found, assuming it was terminated`,
       );
     }
   }
 }
 
 async function terminateTestPlan(job: V1Job, client: AsyncCompletionClient): Promise<void> {
-  const { activityId, planId, workflowId } = parseTestPlanLabels(job);
+  const { activityId, planId, environmentId } = parseTestPlanLabels(job);
+  const workflowId = `${planId}`;
   try {
     await client.complete({ workflowId, activityId }, { id: planId, status: TestExecutionResultStatus.TERMINATED });
   } catch (error) {
     if (error instanceof ActivityNotFoundError) {
       console.warn(
-        `[WARN]: [${workflowId}] [${planId}] [✘] Activity [${activityId}] not found, assuming it was terminated`,
+        `[WARN]: [${environmentId}] [${planId}] [✘] Activity [${activityId}] not found, assuming it was terminated`,
       );
     }
   }
 }
 
 async function heartbeatTestPlan(job: V1Job, client: AsyncCompletionClient): Promise<void> {
-  const { activityId, workflowId, planId } = parseTestPlanLabels(job);
-  // await client.heartbeat({ workflowId, activityId });
+  const { activityId, environmentId, planId } = parseTestPlanLabels(job);
+  const workflowId = `${planId}`;
 
   try {
     await client.heartbeat({ workflowId, activityId });
   } catch (e) {
     if (e instanceof ActivityNotFoundError) {
       console.warn(
-        `[WARN]: [${workflowId}] [${planId}] [♥] Activity [${activityId}] not found, assuming it was terminated`,
+        `[WARN]: [${environmentId}] [${planId}] [♥] Activity [${activityId}] not found, assuming it was terminated`,
       );
     } else {
       console.warn(e);

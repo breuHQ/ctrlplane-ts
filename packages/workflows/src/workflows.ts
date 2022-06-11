@@ -20,7 +20,7 @@ import {
 import type * as activities from './activities';
 import { UpdateEnvCtrlWorkflow } from './signals';
 
-const { RunTest, TerminateEnvironmentTests } = proxyActivities<typeof activities>({
+const { runTest, terminateEnvironmentTests } = proxyActivities<typeof activities>({
   startToCloseTimeout: '60 minutes',
 });
 
@@ -90,10 +90,10 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
      */
 
     const _skipTest = (plan: TestPlan) =>
-      from(executeChild(SkipTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] }));
+      from(executeChild(SkipTestWorkflow, { workflowId: `${plan.id}`, args: [plan] }));
 
     const _runTest = (plan: TestPlan) =>
-      from(executeChild(RunTestWorkflow, { workflowId: `plan-${plan.id}`, args: [plan] }));
+      from(executeChild(RunTestWorkflow, { workflowId: `${plan.id}`, args: [plan] }));
 
     /**
      * Workflow Execution Logic
@@ -173,7 +173,7 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
  * @returns {Promise<TestExecutionResult>} The test execution result
  */
 export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
-  const result = await RunTest(plan);
+  const result = await runTest(plan);
   return result;
 };
 
@@ -193,5 +193,5 @@ export const SkipTestWorkflow = async (plan: TestPlan): Promise<TestExecutionRes
  * @returns
  */
 export const TermiateEnvironmentTestsWorkflow = async (environment: TestEnvironment): Promise<void> => {
-  return TerminateEnvironmentTests(environment);
+  return terminateEnvironmentTests(environment);
 };

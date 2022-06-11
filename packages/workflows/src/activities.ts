@@ -1,6 +1,7 @@
 import { getContext } from '@ctrlplane/common/activities';
-import { TestEnvironment, TestExecutionResult, TestExecutionResultStatus, TestPlan } from '@ctrlplane/common/models';
+import { TestEnvironment, TestExecutionResult, TestPlan } from '@ctrlplane/common/models';
 import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta } from '@kubernetes/client-node';
+import { CompleteAsyncError } from '@temporalio/activity';
 
 /**
  * Create a Kubernetes Job for a given test plan
@@ -8,32 +9,25 @@ import { BatchV1Api, KubeConfig, V1Job, V1JobSpec, V1ObjectMeta } from '@kuberne
  * @param {TestPlan} plan The plan to create the job for.
  * @returns {Promise<TestExecutionResult>} The test execution result.
  */
-export const RunTest = async (plan: TestPlan): Promise<TestExecutionResult> => {
-  return new Promise(resolve => {
-    const ctx = getContext();
-    const spec = createJobSpec(plan, ctx.info.workflowExecution.runId, ctx.info.activityId);
+export async function runTest(plan: TestPlan): Promise<TestExecutionResult> {
+  const ctx = getContext();
+  const spec = createJobSpec(plan, ctx.info.workflowExecution.runId, ctx.info.activityId);
 
-    const k8sConfig = new KubeConfig();
-    k8sConfig.loadFromDefault();
+  const k8sConfig = new KubeConfig();
+  k8sConfig.loadFromDefault();
 
-    const k8sBatch = k8sConfig.makeApiClient(BatchV1Api);
+  const k8sBatch = k8sConfig.makeApiClient(BatchV1Api);
 
-    k8sBatch.createNamespacedJob('ctrlplane', spec).catch(err =>
-      resolve({
-        id: plan.id,
-        status: TestExecutionResultStatus.FAILURE,
-        message: err.response.body.message,
-      }),
-    );
-  });
-};
+  await k8sBatch.createNamespacedJob('ctrlplane', spec);
+  throw new CompleteAsyncError();
+}
 
 /**
  *
  * @param {TestEnvironment} environment The environment to terminate
  * @returns {Promise<void>}
  */
-export const TerminateEnvironmentTests = async (environment: TestEnvironment): Promise<void> => {
+export async function terminateEnvironmentTests(environment: TestEnvironment): Promise<void> {
   const k8sConfig = new KubeConfig();
   k8sConfig.loadFromDefault();
   const k8sBatch = k8sConfig.makeApiClient(BatchV1Api);
@@ -47,7 +41,7 @@ export const TerminateEnvironmentTests = async (environment: TestEnvironment): P
     `ctrlplane.dev/environment-id=${environment.id}`,
   );
   return;
-};
+}
 
 /**
  * Create the job spec for the given test plan
@@ -56,7 +50,7 @@ export const TerminateEnvironmentTests = async (environment: TestEnvironment): P
  * @param {TestPlan} plan The test plan to create the job for.
  * @returns {V1Job}
  */
-const createJobSpec = (plan: TestPlan, runId: string, activityId: string): V1Job => {
+function createJobSpec(plan: TestPlan, runId: string, activityId: string): V1Job {
   const name = plan.id;
   const image = 'busybox:latest';
   const restartPolicy = 'Never';
@@ -67,7 +61,7 @@ const createJobSpec = (plan: TestPlan, runId: string, activityId: string): V1Job
   metadata.namespace = 'ctrlplane';
   metadata.labels = {
     'ctrlplane.dev/activity-id': activityId,
-    'ctrlplane.dev/workflow-id': plan.environmentId,
+    'ctrlplane.dev/environment-id': plan.environmentId,
     'ctrlplane.dev/plan-id': plan.id,
     'ctrlplane.dev/run-id': runId,
   };
@@ -94,4 +88,4 @@ const createJobSpec = (plan: TestPlan, runId: string, activityId: string): V1Job
   job.spec = spec;
 
   return job;
-};
+}

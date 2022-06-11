@@ -1,5 +1,5 @@
 import { TestEnvironment, TestExecutionResult, TestExecutionResultStatus, TestPlan } from '@ctrlplane/common/models';
-import { Semaphore } from '@ctrlplane/common/utils';
+import { Semaphore } from '@ctrlplane/common/utils/semaphore';
 import { executeChild, proxyActivities, setHandler, startChild } from '@temporalio/workflow';
 import {
   bufferToggle,
@@ -30,11 +30,11 @@ const { RunTest, TerminateEnvironmentTests } = proxyActivities<typeof activities
  *
  * NOTE: The workflow is meant only to be started with `signalWithStart`.
  *
- * @param {TestEnvironment} environment The environment to create
+ * @param {TestEnvironment} environment - The environment to create
  * @return {Promise<void>}
  */
 export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<TestExecutionResult[]> => {
-  return new Promise((resolve, _) => {
+  return new Promise(resolve => {
     /**
      * Semaphore to control the number of parallel tests
      */
@@ -169,7 +169,7 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
 /**
  * Run The Test Workflow
  *
- * @param {TestPlan} plan The test plan to run
+ * @param {TestPlan} plan - The test plan to run
  * @returns {Promise<TestExecutionResult>} The test execution result
  */
 export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
@@ -180,13 +180,18 @@ export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResu
 /**
  * Skip Running the tests. We just update the status of the test to `skipped`.
  *
- * @param {TestPlan} plan The test plan to run
+ * @param {TestPlan} plan - The test plan to run
  * @returns {Promise<TestExecutionResult>} The test execution result
  */
 export const SkipTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
-  return new Promise((resolve, _) => resolve({ id: plan.id, status: TestExecutionResultStatus.SKIPPED }));
+  return new Promise(resolve => resolve({ id: plan.id, status: TestExecutionResultStatus.SKIPPED }));
 };
 
-export const TermiateEnvironmentTestsWorkflow: (environment: TestEnvironment) => Promise<void> = async environment => {
+/**
+ *
+ * @param {TestEnvironment} environment - The environment which we want to terminate
+ * @returns
+ */
+export const TermiateEnvironmentTestsWorkflow = async (environment: TestEnvironment): Promise<void> => {
   return TerminateEnvironmentTests(environment);
 };

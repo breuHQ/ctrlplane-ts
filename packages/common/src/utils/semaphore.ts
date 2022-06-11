@@ -1,228 +1,90 @@
-/* eslint-disable @typescript-eslint/ban-types */
-
-import { noop, Noop } from './extras';
+import { BehaviorSubject, filter, map, Observable, take, tap } from 'rxjs';
 
 /**
  * Given a number, creates a semaphore that can be used to limit the number of concurrent executions.
- *
- * @example Initialize a semaphore with a max of 5 concurrent executions
- *
- * ```ts
- * const semaphore = new Semaphore(5);
- * ```
- *
- * @example Executes a function with a semaphore, and wait for the promise to resolve
- *
- * ```ts
- * const fn = async () => "Hello World";
- *
- * const result = await semaphore.fire(fn());
- * ```
- *
- * @example Executes a function while ignoring the result
- *
- * ```ts
- * const fn = async () => "Hello World";
- *
- * sempahore.fireAndForget(fn());
- * ```
  *
  * @export
  * @class Semaphore
  */
 export class Semaphore {
   /**
-   * Available semaphore slots.
+   * Reflects the number of available semaphore slots.
    *
    * @private
    * @type {number}
    * @memberof Semaphore
    */
-  private _available: number;
-
-  get available(): number {
-    return this._available;
-  }
+  private _counter: number;
 
   /**
-   * Executions waiting for semaphore slots to be available.
+   * Available number of slots in the semaphore as an observable
    *
    * @private
-   * @type {Function[]}
+   * @type {BehaviorSubject<number>}
    * @memberof Semaphore
    */
-  private _upcoming: Function[];
-
-  get upcoming() {
-    return this._upcoming;
-  }
+  private _counter$: BehaviorSubject<number>;
 
   /**
-   * Exections in progress
+   * Restricts the number of slots to be greater than 0.
    *
    * @private
-   * @type {Function[]}
+   * @type {Observable<number>}
    * @memberof Semaphore
    */
-  private _heads: Function[];
+  private _isAvailable: Observable<number>;
 
-  get heads() {
-    return this._heads;
+  public get counter() {
+    return this._counter;
   }
-
-  private _completeFn!: Noop;
-  private _completePr!: Promise<void>;
 
   /**
    * Creates an instance of Semaphore.
-   * @param {number} max The maximum number of concurrent executions.
+   * @param {number} max Maximum number of concurrent executions.
    * @memberof Semaphore
    */
   constructor(public max: number) {
-    if (max <= 0) throw new Error('size must be positive');
-    this._available = max;
-    this._upcoming = [];
-    this._heads = [];
-    this._refreshComplete();
+    this._counter = max;
+    this._counter$ = new BehaviorSubject(this._counter);
+    this._isAvailable = this._counter$.pipe(filter(() => this._counter > 0));
   }
 
   /**
-   * Wait for the semaphore to be empty and then execute the function. The result of the function is returned
-   * upon completion.
+   * Acquires a slot on the semaphore.
    *
-   * @template A The return type of the function.
-   * @param {() => Promise<A>} fn The function to execute.
-   * @returns {Promise<A>} A promise that resolves when the function completes.
+   * @return {*}  {Observable<Semaphore>}
    * @memberof Semaphore
    */
-  public async fire<A>(fn: () => Promise<A>): Promise<A> {
-    await this._acquire();
-    return this._execWithRelease(fn);
+  public acquire(): Observable<Semaphore> {
+    return this._isAvailable.pipe(
+      take(1),
+      tap(() => {
+        this._counter--;
+        this._counter$.next(this._counter);
+      }),
+      map(() => this),
+    );
   }
 
   /**
-   * Executes the function but ignores the result.
+   * Releases a slot on the semaphore.
    *
-   * @template A The return type of the function.
-   * @param {() => Promise<A>} fn The function to execute.
-   * @returns {Promise<void>} A promise that resolves when the function completes.
    * @memberof Semaphore
    */
-  public async fireAndForget<A>(fn: () => Promise<A>): Promise<void> {
-    await this._acquire();
-    // Ignoring returned promise on purpose!
-    this._execWithRelease(fn);
+  public release() {
+    this._counter++;
+    this._counter$.next(this._counter);
   }
 
-  /**
-   * Returns a promise that resolves when the semaphore is empty.
+  /** Resize the semaphore
    *
-   * @returns {Promise<void>} A promise that resolves when the semaphore is empty.
-   * @memberof Semaphore
-   */
-  public async awaitTerminate(): Promise<void> {
-    if (this._available < this.max) {
-      return this._completePr;
-    }
-  }
-
-  /**
-   * Resizes the semaphore to the specified size.
    *
-   * @param {number} max The new size of the semaphore.
+   * @param {number} max
    * @memberof Semaphore
    */
   public resize(max: number) {
-    this._available += max - this.max;
+    this._counter += max - this.max;
     this.max = max;
-  }
-
-  /**
-   * Executes the function and releases the semaphore.
-   *
-   * @private
-   * @template A The return type of the function.
-   * @param {() => Promise<A>} fn The function to execute.
-   * @returns {Promise<A>} A promise that resolves when the function completes.
-   * @memberof Semaphore
-   */
-  private async _execWithRelease<A>(fn: () => Promise<A>): Promise<A> {
-    try {
-      return await fn();
-    } finally {
-      this._release();
-    }
-  }
-
-  /**
-   * Returns the current queue of pending functions.
-   *
-   * @private
-   * @returns {Function[]} The current queue of functions.
-   * @memberof Semaphore
-   */
-  private _queue(): Function[] {
-    if (!this._heads.length) {
-      this._heads = this._upcoming.reverse();
-      this._upcoming = [];
-    }
-    return this._heads;
-  }
-
-  /**
-   * Acquires the semaphore and executes the function.
-   *
-   * @private
-   * @returns {(void | Promise<void>)}
-   * @memberof Semaphore
-   */
-  private _acquire(): void | Promise<void> {
-    if (this._available > 0) {
-      this._available -= 1;
-      return undefined;
-    } else {
-      let fn: Noop = noop;
-      const defer = new Promise<void>(resolve => {
-        fn = resolve;
-      });
-      this._upcoming.push(fn);
-      return defer;
-    }
-  }
-
-  /**
-   * Releases the semaphore when the function completes.
-   *
-   * @private
-   * @memberof Semaphore
-   */
-  private _release(): void {
-    const queue = this._queue();
-    if (queue.length) {
-      const fn = queue.pop();
-      if (fn) fn();
-    } else {
-      this._available += 1;
-
-      if (this._available >= this.max) {
-        const fn = this._completeFn;
-        this._refreshComplete();
-        fn();
-      }
-    }
-  }
-
-  /**
-   * Refreshes the promise that resolves when the semaphore is empty.
-   *
-   * @private
-   * @memberof Semaphore
-   */
-  private _refreshComplete(): void {
-    let fn: Noop = noop;
-    this._completePr = new Promise<void>(resolve => {
-      fn = resolve;
-    });
-    this._completeFn = fn;
+    this._counter$.next(this._counter);
   }
 }

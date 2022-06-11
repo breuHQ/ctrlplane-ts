@@ -7,6 +7,7 @@
   },
   "type": "module",
   "scripts": {
+    "predev": "node ./build.dev.js",
     "dev": "nodemon ./build/worker.js",
     "clean": "rimraf coverage build tmp",
     "prebuild": "npm run lint",
@@ -24,6 +25,7 @@
     "esbuild": "^0.14.39",
     "nanoid": "^3.3.4",
     "nodemon": "^2.0.16",
+    "ts-node": "^10.8.1",
     "tslib": "~2.3.1",
     "typescript": "~4.6"
   },

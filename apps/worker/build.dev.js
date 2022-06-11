@@ -19,5 +19,3 @@ await build({
   outdir: './build',
   treeShaking: true,
 });
-
-console.info('Build complete');

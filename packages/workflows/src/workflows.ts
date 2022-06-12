@@ -1,5 +1,6 @@
 import { TestEnvironment, TestExecutionResult, TestExecutionResultStatus, TestPlan } from '@ctrlplane/common/models';
 import { Semaphore } from '@ctrlplane/common/utils/semaphore';
+import { logger } from '@ctrlplane/common/workflows';
 import { executeChild, proxyActivities, setHandler, startChild } from '@temporalio/workflow';
 import {
   bufferToggle,
@@ -82,8 +83,12 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
       filter(v => !v),
       tap(() => (total += paused)),
       tap(() => (paused = 0)),
+      tap(() => logger.info(`Resuming ...`)),
     );
-    const _off$ = _pause$.pipe(filter(v => !!v));
+    const _off$ = _pause$.pipe(
+      filter(v => !!v),
+      tap(() => logger.info(`Pausing ...`)),
+    );
 
     /**
      * Utility Functions
@@ -119,9 +124,11 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
     queue$
       .pipe(
         mergeMap(plan => semaphore.acquire().pipe(map(() => plan))),
+        tap(plan => logger.info(`[${plan.id}] Slot Acquired`)),
         mergeMap(plan => (paused ? _skipTest(plan) : _runTest(plan))),
         tap(result => result$.next(result)),
         tap(() => semaphore.release()),
+        tap(result => logger.info(`[${result.id}] [${result.status}] Slot Released ...`)),
         takeUntil(end$),
       )
       .subscribe();
@@ -135,12 +142,19 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
       )
       .subscribe();
 
-    end$.pipe(take(1)).subscribe(() => resolve(results));
+    end$
+      .pipe(
+        take(1),
+        tap(() => logger.info(`Finished`)),
+      )
+      .subscribe(() => resolve(results));
 
     /**
      * NOTE: This workflow is only meant to be started with `signalWithStart`.
      */
     setHandler(UpdateEnvCtrlWorkflow, async signal => {
+      logger.info(`Received Signal ..`);
+      logger.info(`Resizing Sempahore to ${semaphore.max} -> ${signal.maxParallism}`);
       semaphore.resize(signal.maxParallism);
 
       if (paused === 0 && total === 0 && results.length === 0) {
@@ -149,6 +163,7 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
         if (paused === 0 && signal.continue) {
           total += signal.tests.length;
         } else {
+          logger.info(`Skipping tests ...`);
           paused += signal.tests.length;
           pause$.next(true); // This will stop the `queue`.
           startChild(TermiateEnvironmentTestsWorkflow, {
@@ -160,6 +175,7 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
       }
 
       for (const plan of signal.tests) {
+        logger.info(`[${plan.id}] Adding to Queue`);
         waiting$.next(plan);
       }
     });
@@ -173,6 +189,7 @@ export const EnvCtrlWorkflow = async (environment: TestEnvironment): Promise<Tes
  * @returns {Promise<TestExecutionResult>} The test execution result
  */
 export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
+  logger.info(`Running Test ...`);
   const result = await runTest(plan);
   return result;
 };
@@ -184,14 +201,17 @@ export const RunTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResu
  * @returns {Promise<TestExecutionResult>} The test execution result
  */
 export const SkipTestWorkflow = async (plan: TestPlan): Promise<TestExecutionResult> => {
+  logger.info(`Skipping Test ...`);
   return new Promise(resolve => resolve({ id: plan.id, status: TestExecutionResultStatus.SKIPPED }));
 };
 
 /**
+ * Terminates all tests running in environment
  *
  * @param {TestEnvironment} environment - The environment which we want to terminate
  * @returns
  */
 export const TermiateEnvironmentTestsWorkflow = async (environment: TestEnvironment): Promise<void> => {
+  logger.info(`Terminating All Tests ...`);
   return terminateEnvironmentTests(environment);
 };

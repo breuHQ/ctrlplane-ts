@@ -3,7 +3,7 @@ import { LEVEL, MESSAGE, SPLAT } from 'triple-beam';
 import util from 'util';
 import winston from 'winston';
 
-export const formatLog = winston.format.printf(({ level, message, label, timestamp, ...rest }) => {
+export const winstonFormat = winston.format.printf(({ level, message, label, timestamp, ...rest }) => {
   // The type signature in winston is wrong
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { [LEVEL]: _lvl, [SPLAT]: _splt, [MESSAGE]: _msg, ...restNoSymbols } = rest as Record<string | symbol, unknown>;
@@ -17,7 +17,7 @@ export const formatLog = winston.format.printf(({ level, message, label, timesta
 export const createLogger = (logLevel: LogLevel): winston.Logger =>
   winston.createLogger({
     level: logLevel.toLocaleLowerCase(),
-    format: winston.format.combine(formatLog),
+    format: winston.format.combine(winstonFormat),
     transports: [new winston.transports.Console()],
   });
 

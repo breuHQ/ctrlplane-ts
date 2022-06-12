@@ -23,6 +23,7 @@ export async function runTest(plan: TestPlan): Promise<TestExecutionResult> {
 }
 
 /**
+ * terminates all the tests controlled by the environment
  *
  * @param {TestEnvironment} environment The environment to terminate
  * @returns {Promise<void>}

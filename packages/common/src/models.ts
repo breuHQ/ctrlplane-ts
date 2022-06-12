@@ -1,6 +1,4 @@
-import { Sinks, WorkflowInfo } from '@temporalio/workflow';
-
-export type FormatLogMessageFn = (info: WorkflowInfo, message: string) => string;
+import { Sinks } from '@temporalio/workflow';
 export interface LoggerSinks extends Sinks {
   logger: {
     debug(message: string, meta?: unknown): void;

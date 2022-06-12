@@ -1,17 +1,16 @@
 import { ActivityInboundLogInterceptor } from '@ctrlplane/common/activities';
-import { createWorkflowLoggerSink, formatLogMessage } from '@ctrlplane/common/logging';
+import { createWorkflowLoggerSink, workflowLogFormatter, createLogger } from '@ctrlplane/common/logging';
 import { LoggerSinks } from '@ctrlplane/common/models';
 import { QUEUE_ENV_CTRL } from '@ctrlplane/common/names';
 import * as activities from '@ctrlplane/workflows/activities';
 import { DefaultLogger, InjectedSinks, LogLevel, Runtime, Worker } from '@temporalio/worker';
 import path from 'path';
-import { createLogger } from './logger';
 
 const logLevel: LogLevel = 'INFO';
 
 const logger = createLogger(logLevel);
 
-const worker = async () => {
+const main = async () => {
   const workerLogger = logger.child({ label: 'Worker' });
   const workflowLogger = logger.child({ label: 'Workflow' });
   const activityLogger = logger.child({ label: 'Activity' });
@@ -27,10 +26,10 @@ const worker = async () => {
     }),
   });
 
-  const sinks: InjectedSinks<LoggerSinks> = createWorkflowLoggerSink(workflowLogger, formatLogMessage);
+  const sinks: InjectedSinks<LoggerSinks> = createWorkflowLoggerSink(workflowLogger, workflowLogFormatter);
 
   const workflowsPath = new URL(`./workflows${path.extname(import.meta.url)}`, import.meta.url).pathname;
-  const wrkr = await Worker.create({
+  const worker = await Worker.create({
     activities,
     workflowsPath,
     taskQueue: QUEUE_ENV_CTRL,
@@ -40,10 +39,10 @@ const worker = async () => {
     },
   });
 
-  await wrkr.run();
+  await worker.run();
 };
 
-worker().catch(err => {
+main().catch(err => {
   console.error(`Worker stopped: ${err}`);
   process.exit(1);
 });

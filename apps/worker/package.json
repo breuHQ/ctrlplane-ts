@@ -8,7 +8,7 @@
   "type": "module",
   "scripts": {
     "predev": "node ./build.dev.js",
-    "dev": "nodemon ./build/worker.js",
+    "dev": "nodemon --enable-source-maps ./build/worker.js",
     "clean": "rimraf coverage build tmp",
     "prebuild": "npm run lint",
     "build": "node ./build.js",

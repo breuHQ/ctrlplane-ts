@@ -1,4 +1,4 @@
-import { Context, Info } from '@temporalio/activity';
+import { Context, Info, CompleteAsyncError } from '@temporalio/activity';
 import { ActivityExecuteInput, ActivityInboundCallsInterceptor, Next } from '@temporalio/worker';
 import { Logger } from 'winston';
 
@@ -41,9 +41,17 @@ export class ActivityInboundLogInterceptor implements ActivityInboundCallsInterc
       const durationNanos = process.hrtime.bigint() - startTime;
       const durationMs = Number(durationNanos / 1_000_000n);
       if (error) {
-        this.logger.error(
-          `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${this.info.activityId}] Error ${durationMs}ms ${error}`,
-        );
+        if (error instanceof CompleteAsyncError || error == 'CompleteAsyncError') {
+          this.logger.info(
+            `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${this.info.activityId}] Activity started in ${durationMs}ms. Waiting for completion ...`,
+          );
+        } else {
+          this.logger.error(
+            `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${
+              this.info.activityId
+            }] [${typeof error}] Error ${durationMs}ms ${error}`,
+          );
+        }
       } else {
         this.logger.debug(
           `[${this.info.workflowType}] [${this.info.workflowExecution.workflowId}] [${this.info.activityId}] Completed ${durationMs}ms`,

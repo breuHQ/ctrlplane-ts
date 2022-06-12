@@ -9,7 +9,8 @@ In the spirit of working with new tools, we are using [turborepo](https://turbor
 We need the following packages to be installed
 
 - docker `brew install docker --cask`.
-- turbo `yarn global add turbo`.
+- k3d `brew install k3d`.
+- turbo `npm install -g turbo`.
 
 ### Quick Start
 
@@ -31,6 +32,8 @@ Because, we want to be language agnostic, and in go eco system, to indicate an e
 
 ### TODO
 
+- update configuration initiation via environment variables.
+- update k8s intiation to identify if we are inside the kubernetes.
 - fix the watch script.
 - update the documentation.
-- write integration tests
+- write integration tests.

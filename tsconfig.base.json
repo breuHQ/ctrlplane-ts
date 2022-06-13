@@ -6,7 +6,7 @@
     "declaration": true,
     "forceConsistentCasingInFileNames": true,
     "inlineSources": false,
-    "lib": ["es2020", "dom"],
+    "lib": ["esnext"],
     "module": "esnext",
     "moduleResolution": "node",
     "noImplicitReturns": true,
